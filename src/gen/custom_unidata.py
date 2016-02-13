@@ -5,7 +5,7 @@ Adds decomposition mappings for some characters to the Unicode database, and
 prints the result.
 
 To do things the right way, we should handle these characters separately, but it
-is simpler to put everything at the same place. We need to use NKFC
+is simpler to put everything in the same place. We need to use NKFC
 normalization anyway, so why not trying to stuff everything there?
 
 Previously, we had a special function to fold ligatures to ASCII, but this

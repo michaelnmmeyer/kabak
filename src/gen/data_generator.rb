@@ -65,6 +65,11 @@
 #  authorization of the copyright holder.
 
 
+# Filter out surrogates since we won't ever meet them in UTF-8 strings.
+def is_surrogate(c)
+   c >= 0xD800 and c <= 0xDFFF
+end
+
 $ignorable_list = File.read("DerivedCoreProperties.txt")[/# Derived Property: Default_Ignorable_Code_Point.*?# Total code points:/m]
 $ignorable = []
 $ignorable_list.each_line do |entry|
@@ -86,6 +91,7 @@ $case_folding = {}
 $case_folding_string.chomp.split("\n").each do |line|
   next unless line =~ /([0-9A-F]+); [CFS]; ([0-9A-F ]+);/i
   $case_folding[$1.hex] = $2.split(" ").collect { |e| e.hex }
+  if is_surrogate($1.hex) then raise "Error" end
 end
 
 $int_array = []
@@ -175,6 +181,7 @@ while gets
     last = $1.hex
     name = "<#{$2}>"
     for i in first..last
+      next if is_surrogate(i)
       char_clone = char.clone
       char_clone.code = i
       char_clone.name = name
@@ -183,6 +190,7 @@ while gets
     end
   else
     char = UnicodeChar.new($_)
+    next if is_surrogate(char.code)
     char_hash[char.code] = char
     chars << char
   end
