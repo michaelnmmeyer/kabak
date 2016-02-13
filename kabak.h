@@ -38,13 +38,13 @@ void kb_clear(struct kabak *);
  ******************************************************************************/
 
 enum {
-   KB_COMPAT = 1 << 2,
-   KB_COMPOSE = 1 << 3,
-   KB_DECOMPOSE = 1 << 4,
-   KB_IGNORE = 1 << 5,
-   KB_CASEFOLD = 1 << 6,
-   KB_LUMP = 1 << 7,
-   KB_STRIPMARK = 1 << 8,
+   KB_COMPAT = 1 << 0,
+   KB_COMPOSE = 1 << 1,
+   KB_DECOMPOSE = 1 << 2,
+   KB_IGNORE = 1 << 3,
+   KB_CASEFOLD = 1 << 4,
+   KB_LUMP = 1 << 5,
+   KB_STRIPMARK = 1 << 6,
 };
 
 /* Invalid code points are replaced with REPLACEMENT CHARACTER (U+FFFD).

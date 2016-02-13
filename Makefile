@@ -6,8 +6,8 @@ AMALG = kabak.h kabak.c
 
 all: $(AMALG)
 
-check: $(AMALG) test/kabak.so
-	cd test
+check: test/kabak.so
+	cd test && valgrind lua5.3 normalization.lua < NormalizationTest.txt
 
 .PHONY: all check
 
