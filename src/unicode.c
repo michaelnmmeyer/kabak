@@ -88,12 +88,12 @@ static size_t kb_decompose_char(char32_t uc,
 
 static size_t kb_decompose_seq(char32_t *restrict dst, size_t idx, unsigned opts)
 {
-   const struct kb_sequence *seq = &kb_sequences[idx];
+   struct kb_sequence seq = kb_sequences[idx];
 
-   size_t nr = kb_decompose_char(seq->code_point, dst, opts);
-   while (!seq->terminal) {
-      seq++;
-      nr += kb_decompose_char(seq->code_point, &dst[nr], opts);
+   size_t nr = kb_decompose_char(seq.code_point, dst, opts);
+   while (!seq.terminal) {
+      seq = kb_sequences[++idx];
+      nr += kb_decompose_char(seq.code_point, &dst[nr], opts);
    }
    return nr;
 }
@@ -102,7 +102,7 @@ static size_t kb_decompose_char(char32_t uc,
                                 char32_t dst[static KB_MAX_DECOMPOSITION],
                                 unsigned options)
 {
-   kb_assert(uc <= KB_MAX_CODE_POINT);
+   kb_assert(kb_code_point_valid(uc));
 
    const struct kb_property *restrict property = kb_get_property(uc);
    uint32_t category = property->category;
@@ -176,14 +176,14 @@ static void kb_canonical_reorder(char32_t *str, size_t len)
 
 static size_t kb_decompose(struct kabak *restrict kb,
                            const uint8_t *restrict str, size_t len,
-                           unsigned options)
+                           unsigned options, int *ret)
 {
    size_t wpos = 0;
 
    for (size_t i = 0, clen; i < len; i += clen) {
       char32_t uc = kb_rnext(&str[i], len - i, &clen);
       if (uc == KB_REPLACEMENT_CHAR && clen == 1)
-         kb->flags |= KB_EUTF8;
+         *ret = KB_EUTF8;
 
       char32_t *buf = kb_grow(kb, sizeof(char32_t[KB_MAX_DECOMPOSITION]));
       size_t decomp_result = kb_decompose_char(uc, buf, options);
@@ -268,17 +268,18 @@ static size_t kb_compose(char32_t *buffer, size_t length, unsigned options)
    return wpos;
 }
 
-void kb_transform(struct kabak *restrict kb, const char *restrict str,
+int kb_transform(struct kabak *restrict kb, const char *restrict str,
                   size_t len, unsigned opts)
 {
    kb_clear(kb);
-   
    opts |= KB_COMPOSE | KB_DECOMPOSE;  // FIXME
    
-   len = kb_decompose(kb, (const uint8_t *restrict)str, len, opts);
+   int ret = KB_OK;
+   len = kb_decompose(kb, (const uint8_t *restrict)str, len, opts, &ret);
 
    void *restrict ustr = kb->str;
    len = kb_compose(ustr, len, opts);
 
    kb->len = kb_encode_inplace(ustr, len);
+   return ret;
 }

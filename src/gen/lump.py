@@ -4,6 +4,7 @@
    "œ": "oe",
    "Æ": "AE",
    "æ": "ae",
+   "ᵫ": "ue",
 
    # Double quotes.
    "\N{LEFT DOUBLE QUOTATION MARK}": '"',

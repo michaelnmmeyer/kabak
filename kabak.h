@@ -5,13 +5,24 @@
 #include <stdbool.h>
 #include <uchar.h>
 
-#define KB_VERSION "0.1"
+#define KB_VERSION "0.3"
+
+enum {
+   KB_OK,      /* No error. */
+   KB_EUTF8,   /* Invalid UTF-8. */
+};
+
+/* Returns a string describing an error code. */
+const char *kb_strerror(int err);
+
+/*******************************************************************************
+ * Dynamic buffer.
+ ******************************************************************************/
 
 struct kabak {
    char *str;        /* Zero-terminated. */
    size_t len;       /* Length in bytes. */
    size_t alloc;
-   unsigned flags;
 };
 
 #define KB_INIT {.str = ""}
@@ -29,8 +40,11 @@ void kb_catc(struct kabak *restrict, char32_t);
  */
 void *kb_grow(struct kabak *, size_t size);
 
-/* Truncate to the empty string. */
+/* Truncation to the empty string. */
 void kb_clear(struct kabak *);
+
+/* Returns a buffer contents, allocating it if not already done. */
+char *kb_detach(struct kabak *restrict, size_t *restrict len);
 
 
 /*******************************************************************************
@@ -38,18 +52,23 @@ void kb_clear(struct kabak *);
  ******************************************************************************/
 
 enum {
-   KB_MERGE = 1 << 0,      /* NFKC, with additional custom mappings. */
+   KB_MERGE = 1 << 0,      /* NFKC normalization, with custom mappings. */
    KB_CASE_FOLD = 1 << 3,  /* Case folding. */
    KB_DIACR_FOLD = 1 << 4, /* Diacritic removal. */
 };
 
-/* Invalid code points are replaced with REPLACEMENT CHARACTER (U+FFFD).
- * Unassigned code points and non-characters are deemed to be valid. Only
- * surrogates and code points > 0x10FFFF are considered invalid. The output
- * buffer is cleared beforehand.
+/* Normalizes a string to NFC, and optionally, transforms it in some way.
+ * On success, returns KB_OK, otherwise an error code. In both cases, the
+ * the output buffer is filled with the normalized string.
+ *
+ * Invalid code points, if any, are replaced with REPLACEMENT CHARACTER
+ * (U+FFFD). Unassigned code points and non-characters are deemed to be valid.
+ * Only surrogates and code points > 0x10FFFF are considered invalid.
+ *
+ * The output buffer is cleared beforehand.
  */
-void kb_transform(struct kabak *restrict, const char *restrict str, size_t len,
-                  unsigned opts);
+int kb_transform(struct kabak *restrict, const char *restrict str, size_t len,
+                 unsigned opts);
 
 
 /*******************************************************************************
@@ -68,6 +87,13 @@ size_t kb_encode(char buf[static 4], char32_t c);
 
 /* Counts the number of code points in a UTF-8 string. */
 size_t kb_count(const char *str, size_t len);
+
+/* Returns the offset of the nth code point of a string.
+ * If n is negative, code points are counted from the end of the input string.
+ * If the input string contains less than abs(n) code point, the string length
+ * is returned if n is strictly positive, zero otherwise.
+ */
+size_t kb_offset(const char *str, size_t len, ptrdiff_t n);
 
 
 /*******************************************************************************

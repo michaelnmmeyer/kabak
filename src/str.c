@@ -5,7 +5,7 @@
 #include "api.h"
 #include "imp.h"
 
-noreturn void kb_oom(void)
+local noreturn void kb_oom(void)
 {
    fprintf(stderr, "kabak: out of memory");
    abort();
@@ -60,4 +60,29 @@ void kb_catc(struct kabak *restrict kb, char32_t c)
    const size_t clen = kb_encode(buf, c);
    buf[clen] = '\0';
    kb->len += clen;
+}
+
+char *kb_detach(struct kabak *restrict kb, size_t *restrict len)
+{
+   if (kb->alloc) {
+      *len = kb->len;
+      return kb->str;
+   }
+   *len = 0;
+   char *ret = calloc(1, 1);
+   if (!ret)
+      kb_oom();
+   return ret;
+}
+
+const char *kb_strerror(int err)
+{
+   static const char *const tbl[] = {
+      [KB_OK] = "no error",
+      [KB_EUTF8] = "invalid UTF-8 string",
+   };
+   
+   if (err >= 0 && (size_t)err < sizeof tbl / sizeof *tbl)
+      return tbl[err];
+   return "unknown error";
 }

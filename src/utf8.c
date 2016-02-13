@@ -160,3 +160,32 @@ size_t kb_count(const char *str, size_t len)
    }
    return nr;
 }
+
+local size_t kb_offset_pfx(const char *str, size_t len, size_t nr)
+{
+   size_t pfx_len = 0;
+
+   while (pfx_len < len && nr) {
+      const size_t clen = kb_utf8class[(uint8_t)str[pfx_len]];
+      kb_assert(clen > 0 && pfx_len + clen <= len);
+      pfx_len += clen;
+      nr--;
+   }
+   return pfx_len;
+}
+
+local size_t kb_offset_sfx(const char *str, size_t len, size_t nr)
+{
+   kb_assert(nr > 0);
+
+   while (len)
+      if (((uint8_t)str[--len] & 0xc0) != 0x80 && !--nr)
+         break;
+
+   return len;
+}
+
+size_t kb_offset(const char *str, size_t len, ptrdiff_t nr)
+{ 
+   return nr >= 0 ? kb_offset_pfx(str, len, nr) : kb_offset_sfx(str, len, -nr);
+}
