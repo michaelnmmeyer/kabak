@@ -1,5 +1,9 @@
 #!/usr/bin/env lua5.3
 
+-- Checks that we perform NFC normalization correctly. Does the same for NFKC
+-- normalization, but accept a few defined mismatches in this case to cope with
+-- our custom mappings.
+
 local kabak = require("kabak")
 
 local function seq_to_str(seq)
@@ -19,24 +23,13 @@ local function str_to_seq(str)
    return table.concat(cps, " ")
 end
 
-local longest_decomposition = 0
-
-local function transform(...)
-   local ret = kabak.transform(...)
-   local len = utf8.len(ret)
-   if len > longest_decomposition then
-      longest_decomposition = len
-   end
-   return ret
-end
-
 local function exec_nfc(x, y)
-   local ret = transform(x)
+   local ret = kabak.transform(x)
    if ret ~= y then error("fail") end
 end
 
 local function exec_merge(x, y)
-   local z = transform(x, kabak.MERGE)
+   local z = kabak.transform(x, kabak.MERGE)
    if z ~= y then
       local xs = str_to_seq(x)
       local ys = str_to_seq(y)
@@ -99,5 +92,3 @@ for _, range in ipairs(ranges) do
       end
    end
 end
-
-print("longest decomposition:", longest_decomposition)

@@ -11,6 +11,13 @@
 #define KB_MAX_CODE_POINT 0x10FFFF
 #define KB_REPLACEMENT_CHAR 0xFFFD
 
+#define KB_COMPOSE (1 << 30)
+#define KB_DECOMPOSE (1 << 30)
+
+#define KB_COMPAT KB_MERGE
+#define KB_IGNORE KB_MERGE
+#define KB_LUMP KB_MERGE
+
 // Not sure if true with casefolding and custom mappings!
 // FIXME should do that experimentally, using all possible option combinations.
 #define KB_MAX_DECOMPOSITION 18

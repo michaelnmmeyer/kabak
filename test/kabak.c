@@ -24,9 +24,12 @@ int luaopen_kabak(lua_State *lua)
    luaL_newlib(lua, lib);
    lua_pushstring(lua, KB_VERSION);
    lua_setfield(lua, -2, "VERSION");
-   
-   lua_pushnumber(lua, KB_MERGE);
-   lua_setfield(lua, -2, "MERGE");
+
+   #define $(name) lua_pushnumber(lua, KB_##name); lua_setfield(lua, -2, #name);
+   $(MERGE)
+   $(CASE_FOLD)
+   $(DIACR_FOLD)
+   #undef $
 
    return 1;
 }

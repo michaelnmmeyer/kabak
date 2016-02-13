@@ -32,11 +32,9 @@
 *.dSYM/
 
 # Junk files
-*.log
-*.log.core*
 core
-*.tmp
 vgcore*
+*.tmp
 
 # Private
 lab/

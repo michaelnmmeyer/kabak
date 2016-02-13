@@ -135,12 +135,12 @@ static size_t kb_decompose_char(char32_t uc,
       if (uc == 0x02CB)
          return kb_decompose_lump(0x0060);
    }
-   if (options & KB_STRIPMARK) {
+   if (options & KB_DIACR_FOLD) {
       if (category == KB_CATEGORY_MN ||
          category == KB_CATEGORY_MC ||
          category == KB_CATEGORY_ME) return 0;
    }
-   if (options & KB_CASEFOLD) {
+   if (options & KB_CASE_FOLD) {
       if (property->casefold_mapping != UINT16_MAX)
          return kb_decompose_seq(dst, property->casefold_mapping, options);
    }

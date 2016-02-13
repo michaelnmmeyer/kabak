@@ -44,14 +44,9 @@ void kb_clear(struct kabak *);
  ******************************************************************************/
 
 enum {
-   KB_COMPAT = 1 << 0,
-   KB_COMPOSE = 1 << 1,
-   KB_DECOMPOSE = 1 << 2,
-   KB_IGNORE = 1 << 3,
-   KB_CASEFOLD = 1 << 4,
-   KB_LUMP = 1 << 5,
-   KB_STRIPMARK = 1 << 6,
-   KB_MERGE = KB_COMPAT | KB_IGNORE | KB_LUMP,
+   KB_MERGE = 1 << 0,      /* NFKC, with additional custom mappings. */
+   KB_CASE_FOLD = 1 << 3,  /* Case folding. */
+   KB_DIACR_FOLD = 1 << 4, /* Diacritic removal. */
 };
 
 /* Invalid code points are replaced with REPLACEMENT CHARACTER (U+FFFD).
@@ -150,6 +145,13 @@ bool kb_is_space(char32_t);
 
 #define KB_MAX_CODE_POINT 0x10FFFF
 #define KB_REPLACEMENT_CHAR 0xFFFD
+
+#define KB_COMPOSE (1 << 30)
+#define KB_DECOMPOSE (1 << 30)
+
+#define KB_COMPAT KB_MERGE
+#define KB_IGNORE KB_MERGE
+#define KB_LUMP KB_MERGE
 
 // Not sure if true with casefolding and custom mappings!
 // FIXME should do that experimentally, using all possible option combinations.
@@ -21782,12 +21784,12 @@ static size_t kb_decompose_char(char32_t uc,
       if (uc == 0x02CB)
          return kb_decompose_lump(0x0060);
    }
-   if (options & KB_STRIPMARK) {
+   if (options & KB_DIACR_FOLD) {
       if (category == KB_CATEGORY_MN ||
          category == KB_CATEGORY_MC ||
          category == KB_CATEGORY_ME) return 0;
    }
-   if (options & KB_CASEFOLD) {
+   if (options & KB_CASE_FOLD) {
       if (property->casefold_mapping != UINT16_MAX)
          return kb_decompose_seq(dst, property->casefold_mapping, options);
    }
