@@ -75,16 +75,6 @@ $ignorable_list.each_line do |entry|
   end
 end
 
-$grapheme_boundclass_list = File.read("GraphemeBreakProperty.txt")
-$grapheme_boundclass = Hash.new("KB_BOUNDCLASS_OTHER")
-$grapheme_boundclass_list.each_line do |entry|
-  if entry =~ /^([0-9A-F]+)\.\.([0-9A-F]+)\s*;\s*([A-Za-z_]+)/
-    $1.hex.upto($2.hex) { |e2| $grapheme_boundclass[e2] = "KB_BOUNDCLASS_" + $3.upcase }
-  elsif entry =~ /^([0-9A-F]+)\s*;\s*([A-Za-z_]+)/
-    $grapheme_boundclass[$1.hex] = "KB_BOUNDCLASS_" + $2.upcase
-  end
-end
-
 $exclusions = File.read("CompositionExclusions.txt")[/# \(1\) Script Specifics.*?# Total code points:/m]
 $exclusions = $exclusions.chomp.split("\n").collect { |e| e.hex }
 

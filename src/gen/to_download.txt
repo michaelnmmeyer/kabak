@@ -1,5 +1,4 @@
 http://www.unicode.org/Public/UNIDATA/UnicodeData.txt
-http://www.unicode.org/Public/UCD/latest/ucd/auxiliary/GraphemeBreakProperty.txt
 http://www.unicode.org/Public/UNIDATA/DerivedCoreProperties.txt
 http://www.unicode.org/Public/UNIDATA/CompositionExclusions.txt
 http://www.unicode.org/Public/UNIDATA/CaseFolding.txt

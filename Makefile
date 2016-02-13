@@ -1,3 +1,5 @@
+CFLAGS = -std=c11 -g -Wall -Werror -pedantic
+
 AMALG = kabak.h kabak.c
 
 #--------------------------------------
@@ -6,8 +8,11 @@ AMALG = kabak.h kabak.c
 
 all: $(AMALG)
 
-check: test/kabak.so
-	cd test && valgrind lua5.3 normalization.lua < NormalizationTest.txt
+check: $(AMALG) test/kabak.so
+	cd test && ./run.sh
+
+clean:
+	rm -f test/kabak.so
 
 .PHONY: all check
 

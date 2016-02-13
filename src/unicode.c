@@ -6,10 +6,6 @@
 #include "api.h"
 #include "imp.h"
 
-// Not sure if true with casefolding and custom mappings!
-// FIXME should do that experimentally, using all possible option combinations.
-#define KB_MAX_DECOMPOSITION 18
-
 /* Once tables are created, we only need to know whether the decomposition is
  * canonical or not. Hence the definitions below.
  */

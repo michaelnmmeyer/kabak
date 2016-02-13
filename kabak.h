@@ -45,6 +45,7 @@ enum {
    KB_CASEFOLD = 1 << 4,
    KB_LUMP = 1 << 5,
    KB_STRIPMARK = 1 << 6,
+   KB_MERGE = KB_COMPAT | KB_IGNORE | KB_LUMP,
 };
 
 /* Invalid code points are replaced with REPLACEMENT CHARACTER (U+FFFD).
