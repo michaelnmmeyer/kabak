@@ -1,0 +1,9 @@
+Usage: %s [-c] [-d] [-m] [--] [<file>]
+Normalize a file.
+
+Options:
+   -c, --case-fold      perform Unicode case-folding
+   -d, --diacr-fold     drop diacritics
+   -m, --merge          merge similar-looking code-points
+   -h, --help           display this message
+       --version        display the library version
