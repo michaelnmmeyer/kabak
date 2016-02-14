@@ -1,5 +1,5 @@
 "Usage: %s [-c] [-d] [-m] [--] [<file>]\n"
-"Normalize a file.\n"
+"Normalize a text file.\n"
 "\n"
 "Options:\n"
 "   -c, --case-fold      perform Unicode case-folding\n"

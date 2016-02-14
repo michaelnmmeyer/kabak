@@ -3,7 +3,7 @@
 #include "api.h"
 #include "imp.h"
 
-static const uint8_t kb_utf8class[256] = {
+const uint8_t kb_utf8class[256] = {
    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -22,7 +22,7 @@ static const uint8_t kb_utf8class[256] = {
    4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0,
 };
 
-static char32_t kb_sdecode(const uint8_t *str, size_t clen)
+local char32_t kb_sdecode(const uint8_t *str, size_t clen)
 {
    char32_t uc;
 

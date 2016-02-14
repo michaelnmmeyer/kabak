@@ -6,17 +6,19 @@ CFLAGS += -O2 -DNDEBUG -march=native -mtune=native -fomit-frame-pointer -s -flto
 AMALG = kabak.h kabak.c
 BINARY = kabak
 
+TEST_BINARIES = test/kabak.so test/offset test/io
+
 #--------------------------------------
 # Abstract targets
 #--------------------------------------
 
 all: $(AMALG) $(BINARY)
 
-check: $(AMALG) test/kabak.so test/offset
+check: $(AMALG) $(TEST_BINARIES)
 	cd test && ./run.sh
 
 clean:
-	rm -f $(BINARY) test/kabak.so
+	rm -f $(BINARY) $(TEST_BINARIES)
 
 install: $(BINARY)
 	install -spm 0755 $< $(PREFIX)/bin/$(BINARY)

@@ -38,3 +38,8 @@ vgcore*
 
 # Private
 lab/
+
+# Binaries
+kabak
+test/offset
+test/io

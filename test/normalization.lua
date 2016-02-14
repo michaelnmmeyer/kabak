@@ -6,6 +6,9 @@
 
 local kabak = require("kabak")
 
+-- Trivial case.
+assert(kabak.transform("") == "")
+
 local function seq_to_str(seq)
    local cps = {}
    for cp in seq:gmatch("%x+") do

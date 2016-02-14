@@ -1,5 +1,5 @@
 Usage: %s [-c] [-d] [-m] [--] [<file>]
-Normalize a file.
+Normalize a text file.
 
 Options:
    -c, --case-fold      perform Unicode case-folding

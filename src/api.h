@@ -3,13 +3,16 @@
 
 #include <stddef.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <stdint.h>
 #include <uchar.h>
 
-#define KB_VERSION "0.3"
+#define KB_VERSION "0.4"
 
 enum {
    KB_OK,      /* No error. */
-   KB_EUTF8,   /* Invalid UTF-8. */
+   KB_FINI,    /* End of iteration (not an error). */
+   KB_EUTF8,   /* Invalid UTF-8 sequence. */
 };
 
 /* Returns a string describing an error code. */
@@ -69,6 +72,35 @@ enum {
  */
 int kb_transform(struct kabak *restrict, const char *restrict str, size_t len,
                  unsigned opts);
+
+
+/*******************************************************************************
+ * I/O.
+ ******************************************************************************/
+
+/* FILE object wrapper. */
+struct kb_file {
+   FILE *fp;
+   size_t pending;
+   uint8_t backup[4];
+   char32_t last;
+};
+
+/* Wraps an opened file for reading UTF-8 data from it.
+ * The file can be opened in binary mode. It must not be used while the
+ * kb_file structure is in use. It must be closed by the caller after use if
+ * necessary. We assume that the file pointer is positioned at the beginning of
+ * the file to process.
+ */
+void kb_wrap(struct kb_file *restrict, FILE *restrict);
+
+/* Reads a single line from a file and normalizes it to NFC.
+ * The EOL sequence at the end of a line is trimmed, if any. The last line of
+ * the file is skipped if empty.
+ * Returns KB_OK if a line was read, KB_FINI if at EOF, otherwise an error
+ * code. Typical usage:
+ */
+int kb_get_line(struct kb_file *restrict, struct kabak *restrict);
 
 
 /*******************************************************************************

@@ -50,8 +50,6 @@ struct kb_property {
 #define KB_HANGUL_TCOUNT 28
 #define KB_HANGUL_NCOUNT 588
 
-#define KB_BAD_CHAR ~(char32_t)0
-
 local bool kb_code_point_valid(char32_t c)
 {
    return c < 0xD800 || (c > 0xDFFF && c < 0x110000);
@@ -98,9 +96,9 @@ static size_t kb_decompose_seq(char32_t *restrict dst, size_t idx, unsigned opts
    return nr;
 }
 
-static size_t kb_decompose_char(char32_t uc,
-                                char32_t dst[static KB_MAX_DECOMPOSITION],
-                                unsigned options)
+local size_t kb_decompose_char(char32_t uc,
+                               char32_t dst[static KB_MAX_DECOMPOSITION],
+                               unsigned options)
 {
    kb_assert(kb_code_point_valid(uc));
 
@@ -152,7 +150,7 @@ static size_t kb_decompose_char(char32_t uc,
    return 1;
 }
 
-static void kb_canonical_reorder(char32_t *str, size_t len)
+local void kb_canonical_reorder(char32_t *str, size_t len)
 {
    size_t i = 0;
 
@@ -219,7 +217,7 @@ static bool kb_compose_hangul(char32_t *starter, char32_t current_char)
    return false;
 }
 
-static size_t kb_compose(char32_t *buffer, size_t length, unsigned options)
+local size_t kb_compose(char32_t *buffer, size_t length, unsigned options)
 {
    kb_assert(options & KB_COMPOSE);
    
@@ -280,6 +278,7 @@ int kb_transform(struct kabak *restrict kb, const char *restrict str,
    void *restrict ustr = kb->str;
    len = kb_compose(ustr, len, opts);
 
-   kb->len = kb_encode_inplace(ustr, len);
+   if (len)
+      kb->len = kb_encode_inplace(ustr, len);
    return ret;
 }

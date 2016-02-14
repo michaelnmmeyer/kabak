@@ -79,7 +79,8 @@ const char *kb_strerror(int err)
 {
    static const char *const tbl[] = {
       [KB_OK] = "no error",
-      [KB_EUTF8] = "invalid UTF-8 string",
+      [KB_FINI] = "end of iteration",
+      [KB_EUTF8] = "invalid UTF-8 sequence",
    };
    
    if (err >= 0 && (size_t)err < sizeof tbl / sizeof *tbl)
