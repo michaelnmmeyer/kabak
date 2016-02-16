@@ -18,6 +18,7 @@ enum {
 /* Returns a string describing an error code. */
 const char *kb_strerror(int err);
 
+
 /*******************************************************************************
  * Dynamic buffer.
  ******************************************************************************/
@@ -32,7 +33,7 @@ struct kabak {
 
 void kb_fini(struct kabak *);
 
-/* Append data at the end of a buffer. */
+/* Appends data at the end of a buffer. */
 void kb_cat(struct kabak *restrict, const char *restrict str, size_t len);
 
 /* Encodes a code point to UTF-8 and appends it to a buffer. */
@@ -46,7 +47,9 @@ void *kb_grow(struct kabak *, size_t size);
 /* Truncation to the empty string. */
 void kb_clear(struct kabak *);
 
-/* Returns a buffer contents, allocating it if not already done. */
+/* Returns a buffer's contents as an allocated string.
+ * The string must be freed with free().
+ */
 char *kb_detach(struct kabak *restrict, size_t *restrict len);
 
 
@@ -62,7 +65,7 @@ enum {
 
 /* Normalizes a string to NFC, and optionally, transforms it in some way.
  * On success, returns KB_OK, otherwise an error code. In both cases, the
- * the output buffer is filled with the normalized string.
+ * output buffer is filled with the normalized string.
  *
  * Invalid code points, if any, are replaced with REPLACEMENT CHARACTER
  * (U+FFFD). Unassigned code points and non-characters are deemed to be valid.
@@ -89,8 +92,7 @@ struct kb_file {
 /* Wraps an opened file for reading UTF-8 data from it.
  * The file can be opened in binary mode. It must not be used while the
  * kb_file structure is in use. It must be closed by the caller after use if
- * necessary. We assume that the file pointer is positioned at the beginning of
- * the file to process.
+ * necessary. We assume that no data has been read from the file yet.
  */
 void kb_wrap(struct kb_file *restrict, FILE *restrict);
 
@@ -98,7 +100,7 @@ void kb_wrap(struct kb_file *restrict, FILE *restrict);
  * The EOL sequence at the end of a line is trimmed, if any. The last line of
  * the file is skipped if empty.
  * Returns KB_OK if a line was read, KB_FINI if at EOF, otherwise an error
- * code. Typical usage:
+ * code. Notes above kb_transform() apply here, too.
  */
 int kb_get_line(struct kb_file *restrict, struct kabak *restrict);
 
@@ -121,7 +123,7 @@ size_t kb_encode(char buf[static 4], char32_t c);
 size_t kb_count(const char *str, size_t len);
 
 /* Returns the offset of the nth code point of a string.
- * If n is negative, code points are counted from the end of the input string.
+ * If n is negative, code points are counted from the end of the string.
  * If the input string contains less than abs(n) code point, the string length
  * is returned if n is strictly positive, zero otherwise.
  */

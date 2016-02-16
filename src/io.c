@@ -7,7 +7,7 @@ local int kb_getb(struct kb_file *fp)
 }
 
 local void kb_ungetbs(struct kb_file *restrict fp, const uint8_t *restrict cs,
-                       size_t nr)
+                      size_t nr)
 {
    kb_assert(!fp->pending);
 
@@ -15,7 +15,7 @@ local void kb_ungetbs(struct kb_file *restrict fp, const uint8_t *restrict cs,
       fp->backup[--nr] = cs[fp->pending++];
 }
 
-local void kb_skip_bom(struct kb_file *restrict fp)
+local void kb_skip_bom(struct kb_file *fp)
 {
    static const uint8_t bom[] = {0xEF, 0xBB, 0xBF};
 
@@ -151,10 +151,10 @@ int kb_get_line(struct kb_file *restrict fp, struct kabak *restrict kb)
    size_t len;
    int ret = kb_fdecompose(kb, fp, opts, &len);
 
-   void *restrict ustr = kb->str;
-   len = kb_compose(ustr, len, opts);
-
-   if (len)
+   if (len) {
+      void *restrict ustr = kb->str;
+      len = kb_compose(ustr, len, opts);
       kb->len = kb_encode_inplace(ustr, len);
+   }
    return ret;
 }
