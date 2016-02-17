@@ -13,7 +13,7 @@ noreturn static void version(void)
    exit(EXIT_SUCCESS);
 }
 
-static unsigned options;
+static unsigned options = KB_XNFC;
 
 static void process(const char *path)
 {
@@ -44,15 +44,15 @@ static void process(const char *path)
       die("I/O error:");
 }
 
-static void case_fold(void) { options |= KB_CASE_FOLD; }
-static void diacr_fold(void) { options |= KB_DIACR_FOLD; }
-static void merge(void) { options |= KB_MERGE; }
+static void case_fold(void) { options |= KB_XCASE_FOLD; }
+static void diacr_fold(void) { options |= KB_XSTRIP_DIACRITIC; }
+static void merge(void) { options |= KB_XNFKC; }
 
 int main(int argc, char **argv)
 {
    struct option opts[] = {
       {'c', "case-fold", OPT_FUNC(case_fold)},
-      {'d', "diacr-fold", OPT_FUNC(diacr_fold)},
+      {'d', "strip-diacritic", OPT_FUNC(diacr_fold)},
       {'m', "merge", OPT_FUNC(merge)},
       {'\0', "version", OPT_FUNC(version)},
       {0},

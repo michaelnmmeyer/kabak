@@ -60,12 +60,33 @@ char *kb_detach(struct kabak *restrict, size_t *restrict len);
  ******************************************************************************/
 
 enum {
-   KB_MERGE = 1 << 0,      /* NFKC normalization, with custom mappings. */
-   KB_CASE_FOLD = 1 << 3,  /* Case folding. */
-   KB_DIACR_FOLD = 1 << 4, /* Diacritic removal. */
+   KB_COMPOSE = 1 << 0,
+   KB_DECOMPOSE = 1 << 1,
+   KB_COMPAT = 1 << 2,
+   KB_LUMP = 1 << 3,
+   KB_CASE_FOLD = 1 << 4,
+
+   /* Drop code points in Default_Ignorable_Code_Point. See
+    * http://www.unicode.org/Public/8.0.0/ucd/DerivedCoreProperties.txt
+    */
+   KB_STRIP_IGNORABLE = 1 << 4,
+   
+   /* Drop code points in categories Cn (Other, Not Assigned) and Co (Other,
+    * Private Use). Code points in Cs (Other, Surrogate) don't appear in UTF-8
+    * strings.
+    */
+   KB_STRIP_UNKNOWN = 1 << 7,
+   
+   /* Drop diacritical marks. Categories Mc, Me, and Mn. */
+   KB_STRIP_DIACRITIC = 1 << 6,
+
+   KB_XNFC = KB_COMPOSE | KB_DECOMPOSE | KB_STRIP_IGNORABLE | KB_STRIP_UNKNOWN,
+   KB_XNFKC = KB_XNFC | KB_COMPAT | KB_LUMP,
+   KB_XCASE_FOLD = KB_XNFC | KB_CASE_FOLD,
+   KB_XSTRIP_DIACRITIC = KB_XNFC | KB_STRIP_DIACRITIC,
 };
 
-/* Normalizes a string to NFC, and optionally, transforms it in some way.
+/* Transforms a string in some way.
  * On success, returns KB_OK, otherwise an error code. In both cases, the
  * output buffer is filled with the normalized string.
  *
@@ -138,7 +159,8 @@ size_t kb_offset(const char *str, size_t len, ptrdiff_t n);
  ******************************************************************************/
 
 enum kb_category {
-   KB_CATEGORY_LU = 1,
+   KB_CATEGORY_CN,
+   KB_CATEGORY_LU,
    KB_CATEGORY_LL,
    KB_CATEGORY_LT,
    KB_CATEGORY_LM,
@@ -167,7 +189,6 @@ enum kb_category {
    KB_CATEGORY_CF,
    KB_CATEGORY_CS,
    KB_CATEGORY_CO,
-   KB_CATEGORY_CN,
 };
 
 enum kb_category kb_category(char32_t);
@@ -205,13 +226,6 @@ bool kb_is_space(char32_t);
 #define KB_BAD_CHAR (char32_t)-1
 #define KB_EOF (char32_t)-2
 #define KB_REPLACEMENT_CHAR 0xFFFD
-
-#define KB_COMPOSE (1 << 30)
-#define KB_DECOMPOSE (1 << 30)
-
-#define KB_COMPAT KB_MERGE
-#define KB_IGNORE KB_MERGE
-#define KB_LUMP KB_MERGE
 
 #define KB_MAX_DECOMPOSITION 18  /* Checked by combinations.lua. */
 
@@ -388,7 +402,7 @@ int kb_get_line(struct kb_file *restrict fp, struct kabak *restrict kb)
 {
    kb_clear(kb);
 
-   const unsigned opts = KB_COMPOSE | KB_DECOMPOSE;
+   const unsigned opts = KB_XNFC;
    size_t len;
    int ret = kb_fdecompose(kb, fp, opts, &len);
 
@@ -22014,8 +22028,12 @@ local size_t kb_decompose_char(char32_t uc,
       if (ret)
          return ret;
    }
-   if ((options & KB_IGNORE) && property->ignorable)
+   if ((options & KB_STRIP_IGNORABLE) && property->ignorable)
       return 0;
+   if ((options & KB_STRIP_UNKNOWN)) {
+      if (category == KB_CATEGORY_CN || category == KB_CATEGORY_CO)
+         return 0;
+   }
    if (options & KB_LUMP) {
       if (category == KB_CATEGORY_ZS)
          return kb_decompose_lump(0x0020);
@@ -22037,7 +22055,7 @@ local size_t kb_decompose_char(char32_t uc,
       if (uc == 0x02CB)
          return kb_decompose_lump(0x0060);
    }
-   if (options & KB_DIACR_FOLD) {
+   if (options & KB_STRIP_DIACRITIC) {
       if (category == KB_CATEGORY_MN ||
          category == KB_CATEGORY_MC ||
          category == KB_CATEGORY_ME) return 0;
@@ -22174,13 +22192,13 @@ int kb_transform(struct kabak *restrict kb, const char *restrict str,
                   size_t len, unsigned opts)
 {
    kb_clear(kb);
-   opts |= KB_COMPOSE | KB_DECOMPOSE;  // FIXME
-   
+
    int ret = KB_OK;
    len = kb_decompose(kb, (const uint8_t *restrict)str, len, opts, &ret);
 
    void *restrict ustr = kb->str;
-   len = kb_compose(ustr, len, opts);
+   if (opts & KB_COMPOSE)
+      len = kb_compose(ustr, len, opts);
 
    if (len)
       kb->len = kb_encode_inplace(ustr, len);

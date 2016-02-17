@@ -58,12 +58,33 @@ char *kb_detach(struct kabak *restrict, size_t *restrict len);
  ******************************************************************************/
 
 enum {
-   KB_MERGE = 1 << 0,      /* NFKC normalization, with custom mappings. */
-   KB_CASE_FOLD = 1 << 3,  /* Case folding. */
-   KB_DIACR_FOLD = 1 << 4, /* Diacritic removal. */
+   KB_COMPOSE = 1 << 0,
+   KB_DECOMPOSE = 1 << 1,
+   KB_COMPAT = 1 << 2,
+   KB_LUMP = 1 << 3,
+   KB_CASE_FOLD = 1 << 4,
+
+   /* Drop code points in Default_Ignorable_Code_Point. See
+    * http://www.unicode.org/Public/8.0.0/ucd/DerivedCoreProperties.txt
+    */
+   KB_STRIP_IGNORABLE = 1 << 4,
+   
+   /* Drop code points in categories Cn (Other, Not Assigned) and Co (Other,
+    * Private Use). Code points in Cs (Other, Surrogate) don't appear in UTF-8
+    * strings.
+    */
+   KB_STRIP_UNKNOWN = 1 << 7,
+   
+   /* Drop diacritical marks. Categories Mc, Me, and Mn. */
+   KB_STRIP_DIACRITIC = 1 << 6,
+
+   KB_XNFC = KB_COMPOSE | KB_DECOMPOSE | KB_STRIP_IGNORABLE | KB_STRIP_UNKNOWN,
+   KB_XNFKC = KB_XNFC | KB_COMPAT | KB_LUMP,
+   KB_XCASE_FOLD = KB_XNFC | KB_CASE_FOLD,
+   KB_XSTRIP_DIACRITIC = KB_XNFC | KB_STRIP_DIACRITIC,
 };
 
-/* Normalizes a string to NFC, and optionally, transforms it in some way.
+/* Transforms a string in some way.
  * On success, returns KB_OK, otherwise an error code. In both cases, the
  * output buffer is filled with the normalized string.
  *
@@ -136,7 +157,8 @@ size_t kb_offset(const char *str, size_t len, ptrdiff_t n);
  ******************************************************************************/
 
 enum kb_category {
-   KB_CATEGORY_LU = 1,
+   KB_CATEGORY_CN,
+   KB_CATEGORY_LU,
    KB_CATEGORY_LL,
    KB_CATEGORY_LT,
    KB_CATEGORY_LM,
@@ -165,7 +187,6 @@ enum kb_category {
    KB_CATEGORY_CF,
    KB_CATEGORY_CS,
    KB_CATEGORY_CO,
-   KB_CATEGORY_CN,
 };
 
 enum kb_category kb_category(char32_t);

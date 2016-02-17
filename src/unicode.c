@@ -110,8 +110,12 @@ local size_t kb_decompose_char(char32_t uc,
       if (ret)
          return ret;
    }
-   if ((options & KB_IGNORE) && property->ignorable)
+   if ((options & KB_STRIP_IGNORABLE) && property->ignorable)
       return 0;
+   if ((options & KB_STRIP_UNKNOWN)) {
+      if (category == KB_CATEGORY_CN || category == KB_CATEGORY_CO)
+         return 0;
+   }
    if (options & KB_LUMP) {
       if (category == KB_CATEGORY_ZS)
          return kb_decompose_lump(0x0020);
@@ -133,7 +137,7 @@ local size_t kb_decompose_char(char32_t uc,
       if (uc == 0x02CB)
          return kb_decompose_lump(0x0060);
    }
-   if (options & KB_DIACR_FOLD) {
+   if (options & KB_STRIP_DIACRITIC) {
       if (category == KB_CATEGORY_MN ||
          category == KB_CATEGORY_MC ||
          category == KB_CATEGORY_ME) return 0;
@@ -270,13 +274,13 @@ int kb_transform(struct kabak *restrict kb, const char *restrict str,
                   size_t len, unsigned opts)
 {
    kb_clear(kb);
-   opts |= KB_COMPOSE | KB_DECOMPOSE;  // FIXME
-   
+
    int ret = KB_OK;
    len = kb_decompose(kb, (const uint8_t *restrict)str, len, opts, &ret);
 
    void *restrict ustr = kb->str;
-   len = kb_compose(ustr, len, opts);
+   if (opts & KB_COMPOSE)
+      len = kb_compose(ustr, len, opts);
 
    if (len)
       kb->len = kb_encode_inplace(ustr, len);

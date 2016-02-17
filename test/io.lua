@@ -20,6 +20,12 @@ local files = {
 
    -- Read the last line even if there is not a terminal NL character.
    "foo", "foo\n",
+   
+   "", "",
+   
+   -- Strip ignorable characters, e.g. SOFT HYPHEN.
+   "\xc2\xad", "",
+   "\xc2\xad\nfoo\n", "\nfoo\n",
 }
 
 local path = "io.tmp"

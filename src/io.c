@@ -147,7 +147,7 @@ int kb_get_line(struct kb_file *restrict fp, struct kabak *restrict kb)
 {
    kb_clear(kb);
 
-   const unsigned opts = KB_COMPOSE | KB_DECOMPOSE;
+   const unsigned opts = KB_XNFC;
    size_t len;
    int ret = kb_fdecompose(kb, fp, opts, &len);
 

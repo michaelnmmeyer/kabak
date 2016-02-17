@@ -27,12 +27,12 @@ local function str_to_seq(str)
 end
 
 local function exec_nfc(x, y)
-   local ret = kabak.transform(x)
+   local ret = kabak.transform(x, kabak.COMPOSE | kabak.DECOMPOSE)
    if ret ~= y then error("fail") end
 end
 
 local function exec_merge(x, y)
-   local z = kabak.transform(x, kabak.MERGE)
+   local z = kabak.transform(x, kabak.XNFKC)
    if z ~= y then
       local xs = str_to_seq(x)
       local ys = str_to_seq(y)

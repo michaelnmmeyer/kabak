@@ -14,13 +14,6 @@
 #define KB_EOF (char32_t)-2
 #define KB_REPLACEMENT_CHAR 0xFFFD
 
-#define KB_COMPOSE (1 << 30)
-#define KB_DECOMPOSE (1 << 30)
-
-#define KB_COMPAT KB_MERGE
-#define KB_IGNORE KB_MERGE
-#define KB_LUMP KB_MERGE
-
 #define KB_MAX_DECOMPOSITION 18  /* Checked by combinations.lua. */
 
 local size_t kb_encode_inplace(char32_t *str, size_t len);
