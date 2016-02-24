@@ -65,13 +65,15 @@ void kb_catc(struct kabak *restrict kb, char32_t c)
 char *kb_detach(struct kabak *restrict kb, size_t *restrict len)
 {
    if (kb->alloc) {
-      *len = kb->len;
+      if (len)
+         *len = kb->len;
       return kb->str;
    }
-   *len = 0;
    char *ret = calloc(1, 1);
    if (!ret)
       kb_oom();
+   if (len)
+      *len = 0;
    return ret;
 }
 

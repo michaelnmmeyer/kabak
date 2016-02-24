@@ -60,6 +60,8 @@ char *kb_detach(struct kabak *restrict, size_t *restrict len);
 enum {
    KB_COMPOSE = 1 << 0,
    KB_DECOMPOSE = 1 << 1,
+   
+   /* Use compatibility mappings, with custom additional mappings. */
    KB_COMPAT = 1 << 2,
    KB_LUMP = 1 << 3,
    KB_CASE_FOLD = 1 << 4,
@@ -67,16 +69,16 @@ enum {
    /* Drop code points in Default_Ignorable_Code_Point. See
     * http://www.unicode.org/Public/8.0.0/ucd/DerivedCoreProperties.txt
     */
-   KB_STRIP_IGNORABLE = 1 << 4,
+   KB_STRIP_IGNORABLE = 1 << 5,
    
    /* Drop code points in categories Cn (Other, Not Assigned) and Co (Other,
     * Private Use). Code points in Cs (Other, Surrogate) don't appear in UTF-8
     * strings.
     */
-   KB_STRIP_UNKNOWN = 1 << 7,
+   KB_STRIP_UNKNOWN = 1 << 6,
    
    /* Drop diacritical marks. Categories Mc, Me, and Mn. */
-   KB_STRIP_DIACRITIC = 1 << 6,
+   KB_STRIP_DIACRITIC = 1 << 7,
 
    KB_XNFC = KB_COMPOSE | KB_DECOMPOSE | KB_STRIP_IGNORABLE | KB_STRIP_UNKNOWN,
    KB_XNFKC = KB_XNFC | KB_COMPAT | KB_LUMP,
@@ -124,7 +126,8 @@ void kb_wrap(struct kb_file *restrict, FILE *restrict);
  * Returns KB_OK if a line was read, KB_FINI if at EOF, otherwise an error
  * code. Notes above kb_transform() apply here, too.
  */
-int kb_get_line(struct kb_file *restrict, struct kabak *restrict);
+int kb_get_line(struct kb_file *restrict, struct kabak *restrict,
+                unsigned opts);
 
 
 /*******************************************************************************

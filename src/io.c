@@ -143,18 +143,19 @@ local int kb_fdecompose(struct kabak *restrict kb,
    return ret;
 }
 
-int kb_get_line(struct kb_file *restrict fp, struct kabak *restrict kb)
+int kb_get_line(struct kb_file *restrict fp, struct kabak *restrict kb,
+                unsigned opts)
 {
    kb_clear(kb);
 
-   const unsigned opts = KB_XNFC;
    size_t len;
    int ret = kb_fdecompose(kb, fp, opts, &len);
 
-   if (len) {
-      void *restrict ustr = kb->str;
+   void *restrict ustr = kb->str;
+   if (opts & KB_COMPOSE)
       len = kb_compose(ustr, len, opts);
+
+   if (len)
       kb->len = kb_encode_inplace(ustr, len);
-   }
    return ret;
 }

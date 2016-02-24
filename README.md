@@ -27,7 +27,7 @@ sanity, the following should always be performed, in order :
 2. Normalize the result to NFC.
 
 From this point on, it is guaranteed that each string is valid UTF-8 _and_ can
-be meaningfully compared to another string. In effet, Unicode normalization
+be meaningfully compared to another string. In effect, Unicode normalization
 forms are like secondary encodings, and must be dealt with properly, as is the
 case for UTF-8. Anything done before both of the above are done is meaningless.
 

@@ -15,7 +15,7 @@ int main(int argc, char **argv)
       abort();
 
    kb_wrap(&fp, f);
-   while ((ret = kb_get_line(&fp, &buf)) != KB_FINI)
+   while ((ret = kb_get_line(&fp, &buf, KB_XNFC)) != KB_FINI)
       puts(buf.str);
    
    fclose(f);

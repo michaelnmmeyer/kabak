@@ -32,7 +32,7 @@ local void kb_canonical_reorder(char32_t *str, size_t len);
 
 local size_t kb_compose(char32_t *buffer, size_t length, unsigned options);
 
-extern const uint8_t kb_utf8class[256];
+local const uint8_t kb_utf8class[256];
 
 #ifdef NDEBUG
    #define kb_assert(x) while (false) { (void)(x); }

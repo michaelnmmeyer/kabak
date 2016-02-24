@@ -30,14 +30,16 @@ int luaopen_kabak(lua_State *lua)
    $(DECOMPOSE)
    $(COMPAT)
    $(LUMP)
-   $(IGNORE)
    $(CASE_FOLD)
-   $(DIACR_FOLD)
+   
+   $(STRIP_IGNORABLE)
+   $(STRIP_UNKNOWN)
+   $(STRIP_DIACRITIC)
    
    $(XNFC)
    $(XNFKC)
    $(XCASE_FOLD)
-   $(XDIACR_FOLD)
+   $(XSTRIP_DIACRITIC)
    #undef $
 
    return 1;

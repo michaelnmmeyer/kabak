@@ -287,7 +287,7 @@ end
 $stdout << "};\n\n"
 
 $stdout << "static const struct kb_property kb_properties[] = {\n"
-$stdout << "  {.category = 0, .combining_class = 0, .decomp_type = 0, .decomp_mapping = UINT16_MAX, .casefold_mapping = UINT16_MAX, .comb1st_index = -1, .comb2nd_index = -1, .comp_exclusion = false, .ignorable = false,},\n"
+$stdout << "  {.category = KB_CATEGORY_CN, .combining_class = 0, .decomp_type = 0, .decomp_mapping = UINT16_MAX, .casefold_mapping = UINT16_MAX, .comb1st_index = -1, .comb2nd_index = -1, .comp_exclusion = false, .ignorable = false,},\n"
 properties.each { |line|
   $stdout << line
 }

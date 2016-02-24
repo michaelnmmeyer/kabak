@@ -3,7 +3,7 @@
 #include "api.h"
 #include "imp.h"
 
-const uint8_t kb_utf8class[256] = {
+local const uint8_t kb_utf8class[256] = {
    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,

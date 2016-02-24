@@ -32,7 +32,7 @@ local function exec_nfc(x, y)
 end
 
 local function exec_merge(x, y)
-   local z = kabak.transform(x, kabak.XNFKC)
+   local z = kabak.transform(x, kabak.COMPOSE | kabak.DECOMPOSE | kabak.COMPAT)
    if z ~= y then
       local xs = str_to_seq(x)
       local ys = str_to_seq(y)
