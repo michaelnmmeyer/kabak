@@ -9,7 +9,7 @@ $VG ./offset
 
 $VG lua5.3 io.lua
 
-curl $NORM_TEST | $VG lua5.3 normalization.lua > ret.tmp
+cat NormalizationTest.txt | $VG lua5.3 normalization.lua > ret.tmp
 cmp ret.tmp normalization.expect
 
 rm ret.tmp

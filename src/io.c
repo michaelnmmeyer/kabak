@@ -150,12 +150,11 @@ int kb_get_line(struct kb_file *restrict fp, struct kabak *restrict kb,
 
    size_t len;
    int ret = kb_fdecompose(kb, fp, opts, &len);
-
-   void *restrict ustr = kb->str;
-   if (opts & KB_COMPOSE)
-      len = kb_compose(ustr, len, opts);
-
-   if (len)
+   if (len) {
+      void *restrict ustr = kb->str;
+      if (opts & KB_COMPOSE)
+         len = kb_compose(ustr, len, opts);
       kb->len = kb_encode_inplace(ustr, len);
+   }
    return ret;
 }

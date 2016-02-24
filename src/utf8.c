@@ -61,19 +61,19 @@ bad:
    return KB_BAD_CHAR;
 }
 
-local char32_t kb_rnext(const uint8_t *restrict str, size_t len,
-                        size_t *restrict clen)
+char32_t kb_decode_s(const char *restrict str, size_t len,
+                     size_t *restrict clen)
 {
    if (!len) {
       *clen = 0;
       return KB_REPLACEMENT_CHAR;
    }
 
-   *clen = kb_utf8class[*str];
+   *clen = kb_utf8class[(uint8_t)*str];
    if (!*clen || *clen > len)
       goto bad;
    
-   char32_t c = kb_sdecode(str, *clen);
+   char32_t c = kb_sdecode((const uint8_t *restrict)str, *clen);
    if (c == KB_BAD_CHAR)
       goto bad;
 

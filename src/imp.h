@@ -12,13 +12,10 @@
 #define KB_MAX_CODE_POINT 0x10FFFF
 #define KB_BAD_CHAR (char32_t)-1
 #define KB_EOF (char32_t)-2
-#define KB_REPLACEMENT_CHAR 0xFFFD
 
 #define KB_MAX_DECOMPOSITION 18  /* Checked by combinations.lua. */
 
 local size_t kb_encode_inplace(char32_t *str, size_t len);
-
-local char32_t kb_rnext(const uint8_t *restrict, size_t, size_t *restrict);
 
 local bool kb_code_point_valid(char32_t);
 

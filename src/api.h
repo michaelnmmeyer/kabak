@@ -58,11 +58,15 @@ char *kb_detach(struct kabak *restrict, size_t *restrict len);
  * Normalization.
  ******************************************************************************/
 
+#define KB_REPLACEMENT_CHAR 0xFFFD
+
 enum {
    KB_COMPOSE = 1 << 0,
    KB_DECOMPOSE = 1 << 1,
    
-   /* Use compatibility mappings, with custom additional mappings. */
+   /* Use compatibility mappings, with custom additional mappings. Must be
+    * combined with KB_COMPOSE or KB_DECOMPOSE to be taken into account.
+    */
    KB_COMPAT = 1 << 2,
    KB_LUMP = 1 << 3,
    
@@ -95,9 +99,9 @@ enum {
 /* Transforms a string in some way.
  * On success, returns KB_OK, otherwise an error code. In both cases, the
  * output buffer is filled with the normalized string.
- * Invalid code points, if any, are replaced with REPLACEMENT CHARACTER
- * (U+FFFD). Unassigned code points and non-characters are deemed to be valid.
- * Only surrogates and code points > 0x10FFFF are considered invalid.
+ * Bytes that cannot form valid UTF-8 sequences are replaced with REPLACEMENT
+ * CHARACTER (U+FFFD). Unassigned code points and non-characters are deemed to
+ * be valid. Only surrogates and code points > 0x10FFFF are considered invalid.
  * The output buffer is cleared beforehand.
  */
 int kb_transform(struct kabak *restrict, const char *restrict str, size_t len,
@@ -145,6 +149,21 @@ int kb_get_line(struct kb_file *restrict, struct kabak *restrict,
  *      char32_t c = kb_decode(&str[i], &clen);
  */
 char32_t kb_decode(const char *restrict str, size_t *restrict clen);
+
+/* Safe version of kb_decode().
+ * Bytes that cannot form valid UTF-8 sequences are replaced with REPLACEMENT
+ * CHARACTER (U+FFFD). In this case, *clen is set to 1. If at the end of the
+ * string, REPLACEMENT CHARACTER is also returned, but *clen is set to 0.
+ * Typical usage:
+ *
+ *   for (size_t i = 0, clen; i < len; i += clen) {
+ *      char32_t c = kb_decode_s(&str[i], len - i, &clen);
+ *      if (c == KB_REPLACEMENT_CHAR && clen == 1)
+ *         puts("encoding error");
+ *   }
+ */
+char32_t kb_decode_s(const char *restrict str, size_t len,
+                     size_t *restrict clen);
 
 /* Encodes a single code point. */
 size_t kb_encode(char buf[static 4], char32_t c);

@@ -176,16 +176,17 @@ local void kb_canonical_reorder(char32_t *str, size_t len)
    }
 }
 
-static size_t kb_decompose(struct kabak *restrict kb,
-                           const uint8_t *restrict str, size_t len,
-                           unsigned options, int *ret)
+static int kb_decompose(struct kabak *restrict kb,
+                        const char *restrict str, size_t len,
+                        unsigned options, size_t *restrict lenp)
 {
+   int ret = KB_OK;
    size_t wpos = 0;
 
    for (size_t i = 0, clen; i < len; i += clen) {
-      char32_t uc = kb_rnext(&str[i], len - i, &clen);
+      char32_t uc = kb_decode_s(&str[i], len - i, &clen);
       if (uc == KB_REPLACEMENT_CHAR && clen == 1)
-         *ret = KB_EUTF8;
+         ret = KB_EUTF8;
 
       char32_t *buf = kb_grow(kb, sizeof(char32_t[KB_MAX_DECOMPOSITION]));
       size_t decomp_result = kb_decompose_char(uc, buf, options);
@@ -195,7 +196,9 @@ static size_t kb_decompose(struct kabak *restrict kb,
    }
    if (options & (KB_COMPOSE | KB_DECOMPOSE))
       kb_canonical_reorder((char32_t *)kb->str, wpos);
-   return wpos;
+   
+   *lenp = wpos;
+   return ret;
 }
 
 static bool kb_compose_hangul(char32_t *starter, char32_t current_char)
@@ -271,18 +274,16 @@ local size_t kb_compose(char32_t *buffer, size_t length, unsigned options)
 }
 
 int kb_transform(struct kabak *restrict kb, const char *restrict str,
-                  size_t len, unsigned opts)
+                 size_t len, unsigned opts)
 {
    kb_clear(kb);
 
-   int ret = KB_OK;
-   len = kb_decompose(kb, (const uint8_t *restrict)str, len, opts, &ret);
-
-   void *restrict ustr = kb->str;
-   if (opts & KB_COMPOSE)
-      len = kb_compose(ustr, len, opts);
-
-   if (len)
+   int ret = kb_decompose(kb, str, len, opts, &len);
+   if (len) {
+      void *restrict ustr = kb->str;
+      if (opts & KB_COMPOSE)
+         len = kb_compose(ustr, len, opts);
       kb->len = kb_encode_inplace(ustr, len);
+   }
    return ret;
 }

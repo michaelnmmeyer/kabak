@@ -9,7 +9,7 @@
 #include <stdint.h>
 #include <uchar.h>
 
-#define KB_VERSION "0.4"
+#define KB_VERSION "0.5"
 
 enum {
    KB_OK,      /* No error. */
@@ -50,7 +50,8 @@ void *kb_grow(struct kabak *, size_t size);
 void kb_clear(struct kabak *);
 
 /* Returns a buffer's contents as an allocated string.
- * The string must be freed with free().
+ * The returned string must be freed with free(). It is zero-terminated. If
+ * "len" is not NULL, it is filled with the length of the returned string.
  */
 char *kb_detach(struct kabak *restrict, size_t *restrict len);
 
@@ -59,13 +60,19 @@ char *kb_detach(struct kabak *restrict, size_t *restrict len);
  * Normalization.
  ******************************************************************************/
 
+#define KB_REPLACEMENT_CHAR 0xFFFD
+
 enum {
    KB_COMPOSE = 1 << 0,
    KB_DECOMPOSE = 1 << 1,
    
-   /* Use compatibility mappings, with custom additional mappings. */
+   /* Use compatibility mappings, with custom additional mappings. Must be
+    * combined with KB_COMPOSE or KB_DECOMPOSE to be taken into account.
+    */
    KB_COMPAT = 1 << 2,
    KB_LUMP = 1 << 3,
+   
+   /* Use Unicode casefold mappings. */
    KB_CASE_FOLD = 1 << 4,
 
    /* Drop code points in Default_Ignorable_Code_Point. See
@@ -79,9 +86,12 @@ enum {
     */
    KB_STRIP_UNKNOWN = 1 << 6,
    
-   /* Drop diacritical marks. Categories Mc, Me, and Mn. */
+   /* Drop diacritical marks (categories Mc, Me, and Mn). Must be combined with
+    * KB_COMPOSE or KB_DECOMPOSE to be taken into account.
+    */
    KB_STRIP_DIACRITIC = 1 << 7,
 
+   /* NFC normalization combined with ignorable characters stripping. */
    KB_XNFC = KB_COMPOSE | KB_DECOMPOSE | KB_STRIP_IGNORABLE | KB_STRIP_UNKNOWN,
    KB_XNFKC = KB_XNFC | KB_COMPAT | KB_LUMP,
    KB_XCASE_FOLD = KB_XNFC | KB_CASE_FOLD,
@@ -91,11 +101,9 @@ enum {
 /* Transforms a string in some way.
  * On success, returns KB_OK, otherwise an error code. In both cases, the
  * output buffer is filled with the normalized string.
- *
- * Invalid code points, if any, are replaced with REPLACEMENT CHARACTER
- * (U+FFFD). Unassigned code points and non-characters are deemed to be valid.
- * Only surrogates and code points > 0x10FFFF are considered invalid.
- *
+ * Bytes that cannot form valid UTF-8 sequences are replaced with REPLACEMENT
+ * CHARACTER (U+FFFD). Unassigned code points and non-characters are deemed to
+ * be valid. Only surrogates and code points > 0x10FFFF are considered invalid.
  * The output buffer is cleared beforehand.
  */
 int kb_transform(struct kabak *restrict, const char *restrict str, size_t len,
@@ -122,11 +130,12 @@ struct kb_file {
  */
 void kb_wrap(struct kb_file *restrict, FILE *restrict);
 
-/* Reads a single line from a file and normalizes it to NFC.
- * The EOL sequence at the end of a line is trimmed, if any. The last line of
- * the file is skipped if empty.
- * Returns KB_OK if a line was read, KB_FINI if at EOF, otherwise an error
- * code. Notes above kb_transform() apply here, too.
+/* Reads a single line from a file and, optionally, normalizes it.
+ * All possible EOL sequences are supported. The EOL sequence at the end of a
+ * line, if any, is trimmed. The last line of the file is skipped if empty.
+ * Returns KB_OK if a line was read, KB_FINI if at EOF, otherwise an error code.
+ * I/O errors are not reported and must be checked separately. Notes above
+ * kb_transform() apply here, too.
  */
 int kb_get_line(struct kb_file *restrict, struct kabak *restrict,
                 unsigned opts);
@@ -142,6 +151,21 @@ int kb_get_line(struct kb_file *restrict, struct kabak *restrict,
  *      char32_t c = kb_decode(&str[i], &clen);
  */
 char32_t kb_decode(const char *restrict str, size_t *restrict clen);
+
+/* Safe version of kb_decode().
+ * Bytes that cannot form valid UTF-8 sequences are replaced with REPLACEMENT
+ * CHARACTER (U+FFFD). In this case, *clen is set to 1. If at the end of the
+ * string, REPLACEMENT CHARACTER is also returned, but *clen is set to 0.
+ * Typical usage:
+ *
+ *   for (size_t i = 0, clen; i < len; i += clen) {
+ *      char32_t c = kb_decode_s(&str[i], len - i, &clen);
+ *      if (c == KB_REPLACEMENT_CHAR && clen == 1)
+ *         puts("encoding error");
+ *   }
+ */
+char32_t kb_decode_s(const char *restrict str, size_t len,
+                     size_t *restrict clen);
 
 /* Encodes a single code point. */
 size_t kb_encode(char buf[static 4], char32_t c);
@@ -228,13 +252,10 @@ bool kb_is_space(char32_t);
 #define KB_MAX_CODE_POINT 0x10FFFF
 #define KB_BAD_CHAR (char32_t)-1
 #define KB_EOF (char32_t)-2
-#define KB_REPLACEMENT_CHAR 0xFFFD
 
 #define KB_MAX_DECOMPOSITION 18  /* Checked by combinations.lua. */
 
 local size_t kb_encode_inplace(char32_t *str, size_t len);
-
-local char32_t kb_rnext(const uint8_t *restrict, size_t, size_t *restrict);
 
 local bool kb_code_point_valid(char32_t);
 
@@ -408,13 +429,12 @@ int kb_get_line(struct kb_file *restrict fp, struct kabak *restrict kb,
 
    size_t len;
    int ret = kb_fdecompose(kb, fp, opts, &len);
-
-   void *restrict ustr = kb->str;
-   if (opts & KB_COMPOSE)
-      len = kb_compose(ustr, len, opts);
-
-   if (len)
+   if (len) {
+      void *restrict ustr = kb->str;
+      if (opts & KB_COMPOSE)
+         len = kb_compose(ustr, len, opts);
       kb->len = kb_encode_inplace(ustr, len);
+   }
    return ret;
 }
 #line 1 "str.c"
@@ -483,13 +503,15 @@ void kb_catc(struct kabak *restrict kb, char32_t c)
 char *kb_detach(struct kabak *restrict kb, size_t *restrict len)
 {
    if (kb->alloc) {
-      *len = kb->len;
+      if (len)
+         *len = kb->len;
       return kb->str;
    }
-   *len = 0;
    char *ret = calloc(1, 1);
    if (!ret)
       kb_oom();
+   if (len)
+      *len = 0;
    return ret;
 }
 
@@ -22100,16 +22122,17 @@ local void kb_canonical_reorder(char32_t *str, size_t len)
    }
 }
 
-static size_t kb_decompose(struct kabak *restrict kb,
-                           const uint8_t *restrict str, size_t len,
-                           unsigned options, int *ret)
+static int kb_decompose(struct kabak *restrict kb,
+                        const char *restrict str, size_t len,
+                        unsigned options, size_t *restrict lenp)
 {
+   int ret = KB_OK;
    size_t wpos = 0;
 
    for (size_t i = 0, clen; i < len; i += clen) {
-      char32_t uc = kb_rnext(&str[i], len - i, &clen);
+      char32_t uc = kb_decode_s(&str[i], len - i, &clen);
       if (uc == KB_REPLACEMENT_CHAR && clen == 1)
-         *ret = KB_EUTF8;
+         ret = KB_EUTF8;
 
       char32_t *buf = kb_grow(kb, sizeof(char32_t[KB_MAX_DECOMPOSITION]));
       size_t decomp_result = kb_decompose_char(uc, buf, options);
@@ -22119,7 +22142,9 @@ static size_t kb_decompose(struct kabak *restrict kb,
    }
    if (options & (KB_COMPOSE | KB_DECOMPOSE))
       kb_canonical_reorder((char32_t *)kb->str, wpos);
-   return wpos;
+   
+   *lenp = wpos;
+   return ret;
 }
 
 static bool kb_compose_hangul(char32_t *starter, char32_t current_char)
@@ -22195,19 +22220,17 @@ local size_t kb_compose(char32_t *buffer, size_t length, unsigned options)
 }
 
 int kb_transform(struct kabak *restrict kb, const char *restrict str,
-                  size_t len, unsigned opts)
+                 size_t len, unsigned opts)
 {
    kb_clear(kb);
 
-   int ret = KB_OK;
-   len = kb_decompose(kb, (const uint8_t *restrict)str, len, opts, &ret);
-
-   void *restrict ustr = kb->str;
-   if (opts & KB_COMPOSE)
-      len = kb_compose(ustr, len, opts);
-
-   if (len)
+   int ret = kb_decompose(kb, str, len, opts, &len);
+   if (len) {
+      void *restrict ustr = kb->str;
+      if (opts & KB_COMPOSE)
+         len = kb_compose(ustr, len, opts);
       kb->len = kb_encode_inplace(ustr, len);
+   }
    return ret;
 }
 #line 1 "utf8.c"
@@ -22272,19 +22295,19 @@ bad:
    return KB_BAD_CHAR;
 }
 
-local char32_t kb_rnext(const uint8_t *restrict str, size_t len,
-                        size_t *restrict clen)
+char32_t kb_decode_s(const char *restrict str, size_t len,
+                     size_t *restrict clen)
 {
    if (!len) {
       *clen = 0;
       return KB_REPLACEMENT_CHAR;
    }
 
-   *clen = kb_utf8class[*str];
+   *clen = kb_utf8class[(uint8_t)*str];
    if (!*clen || *clen > len)
       goto bad;
    
-   char32_t c = kb_sdecode(str, *clen);
+   char32_t c = kb_sdecode((const uint8_t *restrict)str, *clen);
    if (c == KB_BAD_CHAR)
       goto bad;
 
