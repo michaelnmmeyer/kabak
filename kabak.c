@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <uchar.h>
+#include <stdarg.h>
 
 #define KB_VERSION "0.5"
 
@@ -40,6 +41,9 @@ void kb_cat(struct kabak *restrict, const char *restrict str, size_t len);
 
 /* Encodes a code point to UTF-8 and appends it to a buffer. */
 void kb_catc(struct kabak *restrict, char32_t);
+
+/* Appends formatted data to a buffer. */
+void kb_printf(struct kabak *restrict, const char *restrict fmt, ...);
 
 /* Ensures that there's enough room for storing "size" more bytes.
  * Returns a pointer to the end of the buffer.
@@ -514,6 +518,38 @@ void kb_catc(struct kabak *restrict kb, char32_t c)
    const size_t clen = kb_encode(buf, c);
    buf[clen] = '\0';
    kb->len += clen;
+}
+
+static size_t kb_vsnprintf_unsigned(char *restrict buf, size_t size,
+                                    const char *restrict fmt, va_list ap)
+{
+   int len = vsnprintf(buf, size, fmt, ap);
+   return len < 0 ? 0 : len;
+}
+
+static void kb_vprintf(struct kabak *restrict kb, const char *restrict fmt,
+                       va_list ap)
+{
+   va_list copy;
+   va_copy(copy, ap);
+   size_t avail = kb->alloc - kb->len;
+   size_t size = kb_vsnprintf_unsigned(&kb->str[kb->len], avail, fmt, copy);
+   va_end(copy);
+
+   if (size >= avail) {
+      char *restrict buf = kb_grow(kb, size);
+      avail = kb->alloc - kb->len;
+      size = kb_vsnprintf_unsigned(buf, avail, fmt, ap);
+   }
+   kb->len += size;
+}
+
+void kb_printf(struct kabak *restrict kb, const char *restrict fmt, ...)
+{
+   va_list ap;
+   va_start(ap, fmt);
+   kb_vprintf(kb, fmt, ap);
+   va_end(ap);
 }
 
 char *kb_detach(struct kabak *restrict kb, size_t *restrict len)
