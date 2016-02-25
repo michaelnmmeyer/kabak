@@ -52,7 +52,7 @@ struct kb_property {
 
 local bool kb_code_point_valid(char32_t c)
 {
-   return c < 0xD800 || (c > 0xDFFF && c < 0x110000);
+   return c < 0xD800 || (c > 0xDFFF && c <= KB_MAX_CODE_POINT);
 }
 
 static const struct kb_property *kb_get_property(char32_t c)

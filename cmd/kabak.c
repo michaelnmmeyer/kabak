@@ -13,7 +13,10 @@ noreturn static void version(void)
    exit(EXIT_SUCCESS);
 }
 
-static unsigned options = KB_XNFC;
+static unsigned options = KB_NFC
+                        | KB_STRIP_IGNORABLE
+                        | KB_STRIP_UNKNOWN
+                        ;
 
 static void process(const char *path)
 {
@@ -44,9 +47,9 @@ static void process(const char *path)
       die("I/O error:");
 }
 
-static void case_fold(void) { options |= KB_XCASE_FOLD; }
-static void diacr_fold(void) { options |= KB_XSTRIP_DIACRITIC; }
-static void merge(void) { options |= KB_XNFKC; }
+static void case_fold(void) { options |= KB_CASE_FOLD; }
+static void diacr_fold(void) { options |= KB_STRIP_DIACRITIC; }
+static void merge(void) { options |= KB_NFKC | KB_LUMP; }
 
 int main(int argc, char **argv)
 {

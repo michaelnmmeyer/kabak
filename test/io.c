@@ -15,7 +15,8 @@ int main(int argc, char **argv)
       abort();
 
    kb_wrap(&fp, f);
-   while ((ret = kb_get_line(&fp, &buf, KB_XNFC)) != KB_FINI)
+   const unsigned opts = KB_NFC | KB_STRIP_IGNORABLE | KB_STRIP_UNKNOWN;
+   while ((ret = kb_get_line(&fp, &buf, opts)) != KB_FINI)
       puts(buf.str);
    
    fclose(f);

@@ -121,7 +121,7 @@ void kb_wrap(struct kb_file *restrict fp, FILE *restrict xfp)
 
 local int kb_fdecompose(struct kabak *restrict kb,
                         struct kb_file *restrict fp, unsigned opts,
-                        size_t *len)
+                        size_t *restrict len)
 {
    int ret = KB_OK;
    char32_t c;

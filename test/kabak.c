@@ -6,7 +6,7 @@ static int kb_lua_transform(lua_State *lua)
 {
    size_t len;
    const char *str = luaL_checklstring(lua, 1, &len);
-   unsigned opts = luaL_optnumber(lua, 2, KB_XNFC);
+   unsigned opts = luaL_optnumber(lua, 2, KB_NFC);
    
    struct kabak buf = KB_INIT;
    kb_transform(&buf, str, len, opts);
@@ -36,10 +36,8 @@ int luaopen_kabak(lua_State *lua)
    $(STRIP_UNKNOWN)
    $(STRIP_DIACRITIC)
    
-   $(XNFC)
-   $(XNFKC)
-   $(XCASE_FOLD)
-   $(XSTRIP_DIACRITIC)
+   $(NFC)
+   $(NFKC)
    #undef $
 
    return 1;

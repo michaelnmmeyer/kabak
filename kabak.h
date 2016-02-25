@@ -61,13 +61,18 @@ char *kb_detach(struct kabak *restrict, size_t *restrict len);
 #define KB_REPLACEMENT_CHAR 0xFFFD
 
 enum {
+   /* Compose code points. */
    KB_COMPOSE = 1 << 0,
+   
+   /* Decompose code points. */
    KB_DECOMPOSE = 1 << 1,
    
    /* Use compatibility mappings, with custom additional mappings. Must be
     * combined with KB_COMPOSE or KB_DECOMPOSE to be taken into account.
     */
    KB_COMPAT = 1 << 2,
+   
+   /* Lump some characters together. */
    KB_LUMP = 1 << 3,
    
    /* Use Unicode casefold mappings. */
@@ -89,11 +94,11 @@ enum {
     */
    KB_STRIP_DIACRITIC = 1 << 7,
 
-   /* NFC normalization combined with ignorable characters stripping. */
-   KB_XNFC = KB_COMPOSE | KB_DECOMPOSE | KB_STRIP_IGNORABLE | KB_STRIP_UNKNOWN,
-   KB_XNFKC = KB_XNFC | KB_COMPAT | KB_LUMP,
-   KB_XCASE_FOLD = KB_XNFC | KB_CASE_FOLD,
-   KB_XSTRIP_DIACRITIC = KB_XNFC | KB_STRIP_DIACRITIC,
+   /* NFC normalization. */
+   KB_NFC = KB_COMPOSE | KB_DECOMPOSE,
+   
+   /* NFKC normalization (with custom additional mappings). */
+   KB_NFKC = KB_COMPOSE | KB_DECOMPOSE | KB_COMPAT,
 };
 
 /* Transforms a string in some way.
@@ -143,14 +148,19 @@ int kb_get_line(struct kb_file *restrict, struct kabak *restrict,
  * UTF-8.
  ******************************************************************************/
 
-/* Decodes a single code point. Typical usage:
+/* Decodes a single code point.
+ * *clen is filled with the number of decoded bytes.
+ * Typical usage:
  *
  *   for (size_t i = 0, clen; i < len; i += clen)
  *      char32_t c = kb_decode(&str[i], &clen);
+ *
+ * The provided UTF-8 string must be valid.
  */
 char32_t kb_decode(const char *restrict str, size_t *restrict clen);
 
 /* Safe version of kb_decode().
+ *
  * Bytes that cannot form valid UTF-8 sequences are replaced with REPLACEMENT
  * CHARACTER (U+FFFD). In this case, *clen is set to 1. If at the end of the
  * string, REPLACEMENT CHARACTER is also returned, but *clen is set to 0.
@@ -165,16 +175,22 @@ char32_t kb_decode(const char *restrict str, size_t *restrict clen);
 char32_t kb_decode_s(const char *restrict str, size_t len,
                      size_t *restrict clen);
 
-/* Encodes a single code point. */
+/* Encodes a single code point.
+ * Returns the number of bytes written.
+ * The provided code point must be valid.
+ */
 size_t kb_encode(char buf[static 4], char32_t c);
 
-/* Counts the number of code points in a UTF-8 string. */
+/* Counts the number of code points in a UTF-8 string.
+ * The provided UTF-8 string must be valid.
+ */
 size_t kb_count(const char *str, size_t len);
 
 /* Returns the offset of the nth code point of a string.
  * If n is negative, code points are counted from the end of the string.
  * If the input string contains less than abs(n) code point, the string length
  * is returned if n is strictly positive, zero otherwise.
+ * The provided UTF-8 string must be valid.
  */
 size_t kb_offset(const char *str, size_t len, ptrdiff_t n);
 
