@@ -8,7 +8,7 @@
 #include <uchar.h>
 #include <stdarg.h>
 
-#define KB_VERSION "0.5"
+#define KB_VERSION "0.6"
 
 enum {
    KB_OK,      /* No error. */
@@ -18,6 +18,9 @@ enum {
 
 /* Returns a string describing an error code. */
 const char *kb_strerror(int err);
+
+/* Function to call when a fatal error occurs. */
+void kb_on_error(void (*handler)(const char *msg));
 
 
 /*******************************************************************************

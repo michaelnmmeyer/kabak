@@ -5,10 +5,18 @@
 #include "api.h"
 #include "imp.h"
 
+local void (*kb_error_handler)(const char *);
+
 local noreturn void kb_oom(void)
 {
-   fprintf(stderr, "kabak: out of memory");
+   if (kb_error_handler)
+      kb_error_handler("out of memory");
    abort();
+}
+
+void kb_on_error(void (*handler)(const char *))
+{
+   kb_error_handler = handler;
 }
 
 void kb_fini(struct kabak *kb)

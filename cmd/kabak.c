@@ -51,6 +51,11 @@ static void case_fold(void) { options |= KB_CASE_FOLD; }
 static void diacr_fold(void) { options |= KB_STRIP_DIACRITIC; }
 static void merge(void) { options |= KB_NFKC | KB_LUMP; }
 
+static void die_oom(const char *msg)
+{
+   die("%s", msg);
+}
+
 int main(int argc, char **argv)
 {
    struct option opts[] = {
@@ -67,6 +72,7 @@ int main(int argc, char **argv)
    parse_options(opts, help, &argc, &argv);
    if (argc > 1)
       die("excess arguments");
-   
+
+   kb_on_error(die_oom);
    process(*argv);
 }

@@ -10,7 +10,7 @@
 #include <uchar.h>
 #include <stdarg.h>
 
-#define KB_VERSION "0.5"
+#define KB_VERSION "0.6"
 
 enum {
    KB_OK,      /* No error. */
@@ -20,6 +20,9 @@ enum {
 
 /* Returns a string describing an error code. */
 const char *kb_strerror(int err);
+
+/* Function to call when a fatal error occurs. */
+void kb_on_error(void (*handler)(const char *msg));
 
 
 /*******************************************************************************
@@ -463,10 +466,18 @@ int kb_get_line(struct kb_file *restrict fp, struct kabak *restrict kb,
 #include <string.h>
 #include <stdnoreturn.h>
 
+local void (*kb_error_handler)(const char *);
+
 local noreturn void kb_oom(void)
 {
-   fprintf(stderr, "kabak: out of memory");
+   if (kb_error_handler)
+      kb_error_handler("out of memory");
    abort();
+}
+
+void kb_on_error(void (*handler)(const char *))
+{
+   kb_error_handler = handler;
 }
 
 void kb_fini(struct kabak *kb)
