@@ -60,12 +60,13 @@ void kb_cat(struct kabak *restrict kb, const char *restrict str, size_t len)
    char *restrict buf = kb_grow(kb, len);
    memcpy(buf, str, len);
    buf[len] = '\0';
+   kb->len += len;
 }
 
 void kb_catc(struct kabak *restrict kb, char32_t c)
 {
    char *restrict buf = kb_grow(kb, 4);
-   const size_t clen = kb_encode(buf, c);
+   size_t clen = kb_encode(buf, c);
    buf[clen] = '\0';
    kb->len += clen;
 }
