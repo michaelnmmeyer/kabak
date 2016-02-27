@@ -71,6 +71,15 @@ void kb_catc(struct kabak *restrict kb, char32_t c)
    kb->len += clen;
 }
 
+void kb_catb(struct kabak *restrict kb, int c)
+{
+   kb_assert(c >= 0 && c <= 0xff);
+   char *restrict buf = kb_grow(kb, 1);
+   *buf++ = c;
+   *buf = '\0';
+   kb->len++;
+}
+
 static size_t kb_vsnprintf_unsigned(char *restrict buf, size_t size,
                                     const char *restrict fmt, va_list ap)
 {

@@ -45,6 +45,9 @@ void kb_cat(struct kabak *restrict, const char *restrict str, size_t len);
 /* Encodes a code point to UTF-8 and appends it to a buffer. */
 void kb_catc(struct kabak *restrict, char32_t);
 
+/* Appends a single byte to a buffer. */
+void kb_catb(struct kabak *restrict, int);
+
 /* Appends formatted data to a buffer. */
 void kb_printf(struct kabak *restrict, const char *restrict fmt, ...);
 
@@ -530,6 +533,15 @@ void kb_catc(struct kabak *restrict kb, char32_t c)
    size_t clen = kb_encode(buf, c);
    buf[clen] = '\0';
    kb->len += clen;
+}
+
+void kb_catb(struct kabak *restrict kb, int c)
+{
+   kb_assert(c >= 0 && c <= 0xff);
+   char *restrict buf = kb_grow(kb, 1);
+   *buf++ = c;
+   *buf = '\0';
+   kb->len++;
 }
 
 static size_t kb_vsnprintf_unsigned(char *restrict buf, size_t size,
