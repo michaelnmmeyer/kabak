@@ -162,7 +162,6 @@ class UnicodeChar
     ".comb1st_index = #{comb1_indicies[code] ?
        (comb1_indicies[code]*comb2_indicies.keys.length) : -1
       }, .comb2nd_index = #{comb2_indicies[code] or -1}, " <<
-    ".comp_exclusion = #{$exclusions.include?(code) or $excl_version.include?(code)}, " <<
     ".ignorable = #{$ignorable.include?(code)}," <<
     "},\n"
   end
@@ -287,7 +286,7 @@ end
 $stdout << "};\n\n"
 
 $stdout << "static const struct kb_property kb_properties[] = {\n"
-$stdout << "  {.category = KB_CATEGORY_CN, .combining_class = 0, .decomp_type = 0, .decomp_mapping = UINT16_MAX, .casefold_mapping = UINT16_MAX, .comb1st_index = -1, .comb2nd_index = -1, .comp_exclusion = false, .ignorable = false,},\n"
+$stdout << "  {.category = KB_CATEGORY_CN, .combining_class = 0, .decomp_type = 0, .decomp_mapping = UINT16_MAX, .casefold_mapping = UINT16_MAX, .comb1st_index = -1, .comb2nd_index = -1, .ignorable = false,},\n"
 properties.each { |line|
   $stdout << line
 }
@@ -302,7 +301,12 @@ comb1st_indicies.keys.sort.each_index do |a|
       i = 0
       $stdout << "\n  "
     end
-    $stdout << ( comb_array[a][b] or -1 ) << ", "
+    code = comb_array[a][b]
+    if code and not $exclusions.include?(code) and not $excl_version.include?(code)
+      $stdout << code << ", "
+    else
+      $stdout << "-1, "
+    end
   end
 end
 $stdout << "};\n"

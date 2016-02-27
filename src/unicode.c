@@ -27,14 +27,13 @@
 #define KB_DECOMP_TYPE_COMPAT   1
 
 struct kb_property {
-   uint16_t category;            /* Could group categories to use less space. */
+   uint16_t category;          /* Could group categories to use less space. */
    uint16_t decomp_mapping;
    uint16_t casefold_mapping;
    int16_t comb1st_index;
-   int16_t comb2nd_index;        /* Can be made smaller. */
-   uint16_t combining_class;     /* Can be stuffed in one byte. */
-   unsigned decomp_type:1;       /* True iff a compatibility mapping. */
-   unsigned comp_exclusion:1;
+   int16_t comb2nd_index;      /* Can be made smaller. */
+   uint8_t combining_class;
+   unsigned decomp_type:1;     /* True iff a compatibility mapping. */
    unsigned ignorable:1;
 };
 
@@ -251,7 +250,7 @@ local size_t kb_compose(char32_t *buffer, size_t length, unsigned options)
                starter_property->comb1st_index +
                current_property->comb2nd_index
             ];
-            if (composition != KB_BAD_CHAR && !kb_get_property(composition)->comp_exclusion) {
+            if (composition != KB_BAD_CHAR) {
                *starter = composition;
                starter_property = NULL;
                continue;
