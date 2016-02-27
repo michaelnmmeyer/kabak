@@ -22546,8 +22546,6 @@ bool kb_is_number(char32_t c)
  */
 bool kb_is_space(char32_t c)
 {
-   kb_assert(kb_code_point_valid(c));
-
    if (c == 0x0020 || (c >= 0x0009 && c <= 0x000d) || c == 0x0085)
       return true;
 
