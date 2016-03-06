@@ -158,9 +158,10 @@ int kb_get_line(struct kb_file *restrict, struct kabak *restrict,
 
 /* Reads a single paragraph from a file, and, optionally, normalizes it.
  * A paragraph is a series of one or more contiguous lines that all contain at
- * least one non-whitespace character.
- * Returns KB_OK if a line was read, KB_FINI if at EOF, otherwise an error code.
- * I/O errors are not reported and must be checked separately. Notes above
+ * least one non-whitespace character. The longest possible series of lines that
+ * don't contain a PARAGRAPH SEPARATOR (U+2029) is systematically selected.
+ * Returns KB_OK if a paragraph was read, KB_FINI if at EOF, otherwise an error
+ * code. I/O errors are not reported and must be checked separately. Notes above
  * kb_transform() apply here, too.
  */
 int kb_get_para(struct kb_file *restrict, struct kabak *restrict,
