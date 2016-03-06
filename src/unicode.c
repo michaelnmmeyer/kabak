@@ -56,6 +56,7 @@ local bool kb_code_point_valid(char32_t c)
 
 static const struct kb_property *kb_get_property(char32_t c)
 {
+   kb_assert(kb_code_point_valid(c));
    size_t idx = kb_stage2table[kb_stage1table[c >> 8] + (c & 0xFF)];
    return &kb_properties[idx];
 }
@@ -272,17 +273,22 @@ local size_t kb_compose(char32_t *buffer, size_t length, unsigned options)
    return wpos;
 }
 
-int kb_transform(struct kabak *restrict kb, const char *restrict str,
-                 size_t len, unsigned opts)
+local void kb_reencode(struct kabak *restrict kb, size_t len, unsigned opts)
 {
-   kb_clear(kb);
-
-   int ret = kb_decompose(kb, str, len, opts, &len);
    if (len) {
       void *restrict ustr = kb->str;
       if (opts & KB_COMPOSE)
          len = kb_compose(ustr, len, opts);
       kb->len = kb_encode_inplace(ustr, len);
    }
+}
+
+int kb_transform(struct kabak *restrict kb, const char *restrict str,
+                 size_t len, unsigned opts)
+{
+   kb_clear(kb);
+
+   int ret = kb_decompose(kb, str, len, opts, &len);
+   kb_reencode(kb, len, opts);
    return ret;
 }

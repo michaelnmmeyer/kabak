@@ -37,7 +37,7 @@ struct kabak {
 
 void kb_fini(struct kabak *);
 
-/* Append data at the end of a buffer. */
+/* Appends data at the end of a buffer. */
 void kb_cat(struct kabak *restrict, const char *restrict str, size_t len);
 
 /* Encodes a code point to UTF-8 and appends it to a buffer. */
@@ -68,6 +68,9 @@ char *kb_detach(struct kabak *restrict, size_t *restrict len);
  * Normalization.
  ******************************************************************************/
 
+/* Each byte that cannot be part of a valid UTF-8 sequence is replaced with
+ * this code point.
+ */
 #define KB_REPLACEMENT_CHAR 0xFFFD
 
 enum {
@@ -151,6 +154,16 @@ void kb_wrap(struct kb_file *restrict, FILE *restrict);
  * kb_transform() apply here, too.
  */
 int kb_get_line(struct kb_file *restrict, struct kabak *restrict,
+                unsigned opts);
+
+/* Reads a single paragraph from a file, and, optionally, normalizes it.
+ * A paragraph is a series of one or more contiguous lines that all contain at
+ * least one non-whitespace character.
+ * Returns KB_OK if a line was read, KB_FINI if at EOF, otherwise an error code.
+ * I/O errors are not reported and must be checked separately. Notes above
+ * kb_transform() apply here, too.
+ */
+int kb_get_para(struct kb_file *restrict, struct kabak *restrict,
                 unsigned opts);
 
 

@@ -39,7 +39,7 @@ struct kabak {
 
 void kb_fini(struct kabak *);
 
-/* Append data at the end of a buffer. */
+/* Appends data at the end of a buffer. */
 void kb_cat(struct kabak *restrict, const char *restrict str, size_t len);
 
 /* Encodes a code point to UTF-8 and appends it to a buffer. */
@@ -70,6 +70,9 @@ char *kb_detach(struct kabak *restrict, size_t *restrict len);
  * Normalization.
  ******************************************************************************/
 
+/* Each byte that cannot be part of a valid UTF-8 sequence is replaced with
+ * this code point.
+ */
 #define KB_REPLACEMENT_CHAR 0xFFFD
 
 enum {
@@ -153,6 +156,16 @@ void kb_wrap(struct kb_file *restrict, FILE *restrict);
  * kb_transform() apply here, too.
  */
 int kb_get_line(struct kb_file *restrict, struct kabak *restrict,
+                unsigned opts);
+
+/* Reads a single paragraph from a file, and, optionally, normalizes it.
+ * A paragraph is a series of one or more contiguous lines that all contain at
+ * least one non-whitespace character.
+ * Returns KB_OK if a line was read, KB_FINI if at EOF, otherwise an error code.
+ * I/O errors are not reported and must be checked separately. Notes above
+ * kb_transform() apply here, too.
+ */
+int kb_get_para(struct kb_file *restrict, struct kabak *restrict,
                 unsigned opts);
 
 
@@ -297,6 +310,8 @@ local size_t kb_compose(char32_t *buffer, size_t length, unsigned options);
 
 local const uint8_t kb_utf8class[256];
 
+local void kb_reencode(struct kabak *restrict kb, size_t len, unsigned opts);
+
 #ifdef NDEBUG
    #define kb_assert(x) while (false) { (void)(x); }
 #else
@@ -381,24 +396,32 @@ bad:
    return KB_REPLACEMENT_CHAR;
 }
 
+enum {
+   LINE_FEED = '\n',
+   CARRIAGE_RETURN = '\r',
+   VERTICAL_TAB = 0x000B,
+   FORM_FEED = 0x000C,
+   NEXT_LINE = 0x0085,
+   LINE_SEPARATOR = 0x2028,
+   PARAGRAPH_SEPARATOR = 0x2029,
+};
+
 local bool kb_break_line(struct kb_file *fp, char32_t c)
 {
    size_t clen;
-
    switch (c) {
-   case 0x000A:   /* Line feed. */
-   case 0x000B:   /* Vertical tab. */
-   case 0x000C:   /* Form feed. */
-   case 0x0085:   /* Next Line. */
-   case 0x2028:   /* Line separator. */
-   case 0x2029:   /* Paragraph Separator. */
+   case LINE_FEED:
+   case VERTICAL_TAB:
+   case FORM_FEED:
+   case NEXT_LINE:
+   case LINE_SEPARATOR:
+   case PARAGRAPH_SEPARATOR:
       return true;
-   case 0x000D: {   /* Carriage return. */
+   case CARRIAGE_RETURN:
       c = kb_getc(fp, &clen);
-      if (c != '\n')
+      if (c != LINE_FEED)
          kb_ungetc(c, fp);
       return true;
-   }
    default:
       return false;
    }
@@ -426,7 +449,7 @@ void kb_wrap(struct kb_file *restrict fp, FILE *restrict xfp)
 
 local int kb_fdecompose(struct kabak *restrict kb,
                         struct kb_file *restrict fp, unsigned opts,
-                        size_t *restrict len)
+                        size_t *restrict len, char32_t *restrict cp)
 {
    int ret = KB_OK;
    char32_t c;
@@ -439,6 +462,8 @@ local int kb_fdecompose(struct kabak *restrict kb,
       clen = kb_decompose_char(c, buf, opts);
       kb->len += sizeof(char32_t[clen]);
    }
+   if (cp)
+      *cp = c;
    
    *len = kb->len / sizeof(char32_t);
    kb_canonical_reorder((char32_t *)kb->str, *len);
@@ -454,13 +479,54 @@ int kb_get_line(struct kb_file *restrict fp, struct kabak *restrict kb,
    kb_clear(kb);
 
    size_t len;
-   int ret = kb_fdecompose(kb, fp, opts, &len);
+   int ret = kb_fdecompose(kb, fp, opts, &len, NULL);
    if (len) {
       void *restrict ustr = kb->str;
       if (opts & KB_COMPOSE)
          len = kb_compose(ustr, len, opts);
       kb->len = kb_encode_inplace(ustr, len);
    }
+   return ret;
+}
+
+static bool kb_all_whitespace(const char32_t *str, size_t len)
+{
+   for (size_t i = 0; i < len; i++)
+      if (!kb_is_space(str[i]))
+         return false;
+   return true;
+}
+
+int kb_get_para(struct kb_file *restrict fp, struct kabak *restrict kb,
+                unsigned opts)
+{
+   kb_clear(kb);
+
+   struct kabak line = KB_INIT;
+   bool have_text = false;
+   int ret = KB_OK;
+
+   do {
+      size_t len;
+      char32_t c;
+      kb_clear(&line);
+      ret = kb_fdecompose(&line, fp, opts, &len, &c);
+      if (kb_all_whitespace((char32_t *)line.str, len)) {
+         if (have_text)
+            break;
+      } else {
+         kb_reencode(&line, len, opts);
+         kb_cat(kb, line.str, line.len);
+         kb_catb(kb, '\n');
+         have_text = true;
+      }
+      if (c == PARAGRAPH_SEPARATOR && have_text)
+         break;
+   } while (ret != KB_FINI);
+
+   kb_fini(&line);
+   if (ret == KB_FINI && kb->len)
+      return KB_OK;
    return ret;
 }
 #line 1 "str.c"
@@ -22077,6 +22143,7 @@ local bool kb_code_point_valid(char32_t c)
 
 static const struct kb_property *kb_get_property(char32_t c)
 {
+   kb_assert(kb_code_point_valid(c));
    size_t idx = kb_stage2table[kb_stage1table[c >> 8] + (c & 0xFF)];
    return &kb_properties[idx];
 }
@@ -22293,18 +22360,23 @@ local size_t kb_compose(char32_t *buffer, size_t length, unsigned options)
    return wpos;
 }
 
-int kb_transform(struct kabak *restrict kb, const char *restrict str,
-                 size_t len, unsigned opts)
+local void kb_reencode(struct kabak *restrict kb, size_t len, unsigned opts)
 {
-   kb_clear(kb);
-
-   int ret = kb_decompose(kb, str, len, opts, &len);
    if (len) {
       void *restrict ustr = kb->str;
       if (opts & KB_COMPOSE)
          len = kb_compose(ustr, len, opts);
       kb->len = kb_encode_inplace(ustr, len);
    }
+}
+
+int kb_transform(struct kabak *restrict kb, const char *restrict str,
+                 size_t len, unsigned opts)
+{
+   kb_clear(kb);
+
+   int ret = kb_decompose(kb, str, len, opts, &len);
+   kb_reencode(kb, len, opts);
    return ret;
 }
 #line 1 "utf8.c"

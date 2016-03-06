@@ -31,6 +31,8 @@ local size_t kb_compose(char32_t *buffer, size_t length, unsigned options);
 
 local const uint8_t kb_utf8class[256];
 
+local void kb_reencode(struct kabak *restrict kb, size_t len, unsigned opts);
+
 #ifdef NDEBUG
    #define kb_assert(x) while (false) { (void)(x); }
 #else

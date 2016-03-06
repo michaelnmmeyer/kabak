@@ -1,4 +1,4 @@
-local files = {
+local line_test = {
    -- Skip the leading BOM, but backup if there isn't a full match.
    "\xEF\xBB\xBFabc\n", "abc\n",
    "\xEF\xBBabc\n", "��abc\n",
@@ -28,17 +28,28 @@ local files = {
    "\xc2\xad\nfoo\n", "\nfoo\n",
 }
 
-local path = "io.tmp"
+local para_test = {
+   "foo\n\nbar", "<<foo\n>><<bar\n>>",
+   "foo\r\n\r\nbar", "<<foo\n>><<bar\n>>",
+   "foo\r\nbar", "<<foo\nbar\n>>",
+   "foo\xe2\x80\xa9bar", "<<foo\n>><<bar\n>>",
+   "\n\nfoo\n\n\n\nbar\n\n\n\n", "<<foo\n>><<bar\n>>",
+}
 
-for i = 1, #files, 2 do
-   local fp = assert(io.open(path, "wb"))
-   fp:write(files[i])
-   fp:close()
-   local cmd = string.format("./io %s", path)
-   fp = assert(io.popen(cmd))
-   local ret = fp:read("*a")
-   fp:close()
-   assert(ret == files[i + 1], i)
+local function do_test(tbl, mode)
+   local path = "io.tmp"
+   for i = 1, #tbl, 2 do
+      local fp = assert(io.open(path, "wb"))
+      fp:write(tbl[i])
+      fp:close()
+      local cmd = string.format("./io %s %s", path, mode)
+      fp = assert(io.popen(cmd))
+      local ret = fp:read("*a")
+      fp:close()
+      assert(ret == tbl[i + 1], i, ret)
+   end
+   os.remove(path)
 end
 
-os.remove(path)
+do_test(line_test, "line")
+do_test(para_test, "para")
