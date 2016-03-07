@@ -131,6 +131,7 @@ local int kb_fdecompose(struct kabak *restrict kb,
                         struct kb_file *restrict fp, unsigned opts,
                         size_t *restrict len, char32_t *restrict cp)
 {
+   size_t ofs = kb->len;
    int ret = KB_OK;
    char32_t c;
    size_t clen;
@@ -145,8 +146,8 @@ local int kb_fdecompose(struct kabak *restrict kb,
    if (cp)
       *cp = c;
    
-   *len = kb->len / sizeof(char32_t);
-   kb_canonical_reorder((char32_t *)kb->str, *len);
+   *len = (kb->len - ofs) / sizeof(char32_t);
+   kb_canonical_reorder((char32_t *)(&kb->str[ofs]), *len);
 
    if (ret == KB_OK && kb_at_end(fp, kb))
       return KB_FINI;
@@ -160,12 +161,7 @@ int kb_get_line(struct kb_file *restrict fp, struct kabak *restrict kb,
 
    size_t len;
    int ret = kb_fdecompose(kb, fp, opts, &len, NULL);
-   if (len) {
-      void *restrict ustr = kb->str;
-      if (opts & KB_COMPOSE)
-         len = kb_compose(ustr, len, opts);
-      kb->len = kb_encode_inplace(ustr, len);
-   }
+   kb_reencode(kb, len, opts, 0, 0);
    return ret;
 }
 
@@ -182,21 +178,19 @@ int kb_get_para(struct kb_file *restrict fp, struct kabak *restrict kb,
 {
    kb_clear(kb);
 
-   struct kabak line = KB_INIT;
    bool have_text = false;
    int ret = KB_OK;
-
    do {
+      size_t align = kb_pad(kb);
+      size_t ofs = kb->len;
       size_t len;
       char32_t c;
-      kb_clear(&line);
-      ret = kb_fdecompose(&line, fp, opts, &len, &c);
-      if (kb_all_whitespace((char32_t *)line.str, len)) {
+      ret = kb_fdecompose(kb, fp, opts, &len, &c);
+      if (kb_all_whitespace((char32_t *)(&kb->str[ofs]), len)) {
          if (have_text)
             break;
       } else {
-         kb_reencode(&line, len, opts);
-         kb_cat(kb, line.str, line.len);
+         kb_reencode(kb, len, opts, ofs, align);
          kb_catb(kb, '\n');
          have_text = true;
       }
@@ -204,7 +198,6 @@ int kb_get_para(struct kb_file *restrict fp, struct kabak *restrict kb,
          break;
    } while (ret != KB_FINI);
 
-   kb_fini(&line);
    if (ret == KB_FINI && kb->len)
       return KB_OK;
    return ret;

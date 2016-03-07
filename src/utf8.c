@@ -137,15 +137,14 @@ size_t kb_encode(char dst[static 4], char32_t uc)
    return 4;
 }
 
-local size_t kb_encode_inplace(char32_t *str, size_t len)
+local size_t kb_encode_inplace(char32_t *str, size_t len, size_t align)
 {
    size_t new_len = 0;
 
    for (size_t i = 0; i < len; i++) {
       char32_t c = str[i];
-      new_len += kb_encode(((char *)str) + new_len, c);
+      new_len += kb_encode(((char *)str) - align + new_len, c);
    }
-   ((char *)str)[new_len] = '\0';
    return new_len;
 }
 

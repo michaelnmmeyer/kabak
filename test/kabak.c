@@ -4,12 +4,19 @@
 
 static int kb_lua_transform(lua_State *lua)
 {
-   size_t len;
-   const char *str = luaL_checklstring(lua, 1, &len);
-   unsigned opts = luaL_optnumber(lua, 2, KB_NFC);
-   
+   int argc = lua_gettop(lua);
+   unsigned opts = luaL_optnumber(lua, 1, KB_NFC);
+
    struct kabak buf = KB_INIT;
-   kb_transform(&buf, str, len, opts);
+   for (int i = 2; i <= argc; i++) {
+      if (!lua_isstring(lua, i)) {
+         kb_fini(&buf);
+         return luaL_error(lua, "value at %d is not a string", i);
+      }
+      size_t len;
+      const char *str = lua_tolstring(lua, i, &len);
+      kb_transform(&buf, str, len, opts);
+   }
    lua_pushlstring(lua, buf.str, buf.len);
    kb_fini(&buf);
    return 1;

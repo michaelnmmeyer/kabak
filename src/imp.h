@@ -13,9 +13,9 @@
 #define KB_BAD_CHAR (char32_t)-1
 #define KB_EOF (char32_t)-2
 
-#define KB_MAX_DECOMPOSITION 18  /* Checked by combinations.lua. */
+#define KB_MAX_DECOMPOSITION 18
 
-local size_t kb_encode_inplace(char32_t *str, size_t len);
+local size_t kb_encode_inplace(char32_t *str, size_t len, size_t align);
 
 local bool kb_code_point_valid(char32_t);
 
@@ -31,9 +31,13 @@ local size_t kb_compose(char32_t *buffer, size_t length, unsigned options);
 
 local const uint8_t kb_utf8class[256];
 
-local void kb_reencode(struct kabak *restrict kb, size_t len, unsigned opts);
+local size_t kb_pad(struct kabak *kb);
+
+local void kb_reencode(struct kabak *restrict kb, size_t len, unsigned opts,
+                       size_t offset, size_t align);
 
 #ifdef NDEBUG
+   /* To prevent unused function 'kb_code_point_valid'. */
    #define kb_assert(x) while (false) { (void)(x); }
 #else
    #define kb_assert(x) assert(x)

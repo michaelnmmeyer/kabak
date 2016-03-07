@@ -7,7 +7,11 @@
 local kabak = require("kabak")
 
 -- Trivial case.
-assert(kabak.transform("") == "")
+assert(kabak.transform(nil, "") == "")
+
+-- Normalization of several strings.
+assert(kabak.transform(nil, "a", "ab", "abc", "abcd", "abcde", "abcdef") ==
+       "aababcabcdabcdeabcdef")
 
 local function seq_to_str(seq)
    local cps = {}
@@ -27,12 +31,12 @@ local function str_to_seq(str)
 end
 
 local function exec_nfc(x, y)
-   local ret = kabak.transform(x, kabak.COMPOSE | kabak.DECOMPOSE)
+   local ret = kabak.transform(kabak.COMPOSE | kabak.DECOMPOSE, x)
    if ret ~= y then error("fail") end
 end
 
 local function exec_merge(x, y)
-   local z = kabak.transform(x, kabak.COMPOSE | kabak.DECOMPOSE | kabak.COMPAT)
+   local z = kabak.transform(kabak.COMPOSE | kabak.DECOMPOSE | kabak.COMPAT, x)
    if z ~= y then
       local xs = str_to_seq(x)
       local ys = str_to_seq(y)

@@ -31,6 +31,13 @@ void kb_clear(struct kabak *kb)
       kb->str[kb->len = 0] = '\0';
 }
 
+void kb_truncate(struct kabak *kb, size_t len)
+{
+   kb_assert(len == 0 || len < kb->alloc);
+   if (kb->alloc)
+      kb->str[kb->len = len] = '\0';
+}
+
 #define KB_INIT_SIZE sizeof(char32_t[KB_MAX_DECOMPOSITION])
 
 void *kb_grow(struct kabak *kb, size_t size)

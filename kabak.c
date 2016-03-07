@@ -10,7 +10,7 @@
 #include <uchar.h>
 #include <stdarg.h>
 
-#define KB_VERSION "0.6"
+#define KB_VERSION "0.7"
 
 enum {
    KB_OK,      /* No error. */
@@ -59,6 +59,9 @@ void *kb_grow(struct kabak *, size_t size);
 /* Truncation to the empty string. */
 void kb_clear(struct kabak *);
 
+/* Truncation to a given length (in bytes). */
+void kb_truncate(struct kabak *, size_t len);
+
 /* Returns a buffer's contents as an allocated string.
  * The returned string must be freed with free(). It is zero-terminated. If
  * "len" is not NULL, it is filled with the length of the returned string.
@@ -71,7 +74,8 @@ char *kb_detach(struct kabak *restrict, size_t *restrict len);
  ******************************************************************************/
 
 /* Each byte that cannot be part of a valid UTF-8 sequence is replaced with
- * this code point.
+ * this code point. Unassigned code points and non-characters are deemed to be
+ * valid. Only surrogates and code points > 0x10FFFF are considered invalid.
  */
 #define KB_REPLACEMENT_CHAR 0xFFFD
 
@@ -116,13 +120,9 @@ enum {
    KB_NFKC = KB_COMPOSE | KB_DECOMPOSE | KB_COMPAT,
 };
 
-/* Transforms a string in some way.
+/* Transforms a string in some way and appends it to a buffer.
  * On success, returns KB_OK, otherwise an error code. In both cases, the
- * output buffer is filled with the normalized string.
- * Bytes that cannot form valid UTF-8 sequences are replaced with REPLACEMENT
- * CHARACTER (U+FFFD). Unassigned code points and non-characters are deemed to
- * be valid. Only surrogates and code points > 0x10FFFF are considered invalid.
- * The output buffer is cleared beforehand.
+ * normalized string is appended to the provided buffer.
  */
 int kb_transform(struct kabak *restrict, const char *restrict str, size_t len,
                  unsigned opts);
@@ -149,11 +149,11 @@ struct kb_file {
 void kb_wrap(struct kb_file *restrict, FILE *restrict);
 
 /* Reads a single line from a file and, optionally, normalizes it.
+ * The input buffer is cleared beforehand.
  * All possible EOL sequences are supported. The EOL sequence at the end of a
  * line, if any, is trimmed. The last line of the file is skipped if empty.
  * Returns KB_OK if a line was read, KB_FINI if at EOF, otherwise an error code.
- * I/O errors are not reported and must be checked separately. Notes above
- * kb_transform() apply here, too.
+ * I/O errors are not reported and must be checked separately.
  */
 int kb_get_line(struct kb_file *restrict, struct kabak *restrict,
                 unsigned opts);
@@ -162,9 +162,9 @@ int kb_get_line(struct kb_file *restrict, struct kabak *restrict,
  * A paragraph is a series of one or more contiguous lines that all contain at
  * least one non-whitespace character. The longest possible series of lines that
  * don't contain a PARAGRAPH SEPARATOR (U+2029) is systematically selected.
+ * Each line of the paragraph is followed by a LINE FEED ('\n') in the output.
  * Returns KB_OK if a paragraph was read, KB_FINI if at EOF, otherwise an error
- * code. I/O errors are not reported and must be checked separately. Notes above
- * kb_transform() apply here, too.
+ * code. I/O errors are not reported and must be checked separately.
  */
 int kb_get_para(struct kb_file *restrict, struct kabak *restrict,
                 unsigned opts);
@@ -293,9 +293,9 @@ bool kb_is_space(char32_t);
 #define KB_BAD_CHAR (char32_t)-1
 #define KB_EOF (char32_t)-2
 
-#define KB_MAX_DECOMPOSITION 18  /* Checked by combinations.lua. */
+#define KB_MAX_DECOMPOSITION 18
 
-local size_t kb_encode_inplace(char32_t *str, size_t len);
+local size_t kb_encode_inplace(char32_t *str, size_t len, size_t align);
 
 local bool kb_code_point_valid(char32_t);
 
@@ -311,9 +311,13 @@ local size_t kb_compose(char32_t *buffer, size_t length, unsigned options);
 
 local const uint8_t kb_utf8class[256];
 
-local void kb_reencode(struct kabak *restrict kb, size_t len, unsigned opts);
+local size_t kb_pad(struct kabak *kb);
+
+local void kb_reencode(struct kabak *restrict kb, size_t len, unsigned opts,
+                       size_t offset, size_t align);
 
 #ifdef NDEBUG
+   /* To prevent unused function 'kb_code_point_valid'. */
    #define kb_assert(x) while (false) { (void)(x); }
 #else
    #define kb_assert(x) assert(x)
@@ -452,6 +456,7 @@ local int kb_fdecompose(struct kabak *restrict kb,
                         struct kb_file *restrict fp, unsigned opts,
                         size_t *restrict len, char32_t *restrict cp)
 {
+   size_t ofs = kb->len;
    int ret = KB_OK;
    char32_t c;
    size_t clen;
@@ -466,8 +471,8 @@ local int kb_fdecompose(struct kabak *restrict kb,
    if (cp)
       *cp = c;
    
-   *len = kb->len / sizeof(char32_t);
-   kb_canonical_reorder((char32_t *)kb->str, *len);
+   *len = (kb->len - ofs) / sizeof(char32_t);
+   kb_canonical_reorder((char32_t *)(&kb->str[ofs]), *len);
 
    if (ret == KB_OK && kb_at_end(fp, kb))
       return KB_FINI;
@@ -481,12 +486,7 @@ int kb_get_line(struct kb_file *restrict fp, struct kabak *restrict kb,
 
    size_t len;
    int ret = kb_fdecompose(kb, fp, opts, &len, NULL);
-   if (len) {
-      void *restrict ustr = kb->str;
-      if (opts & KB_COMPOSE)
-         len = kb_compose(ustr, len, opts);
-      kb->len = kb_encode_inplace(ustr, len);
-   }
+   kb_reencode(kb, len, opts, 0, 0);
    return ret;
 }
 
@@ -503,21 +503,19 @@ int kb_get_para(struct kb_file *restrict fp, struct kabak *restrict kb,
 {
    kb_clear(kb);
 
-   struct kabak line = KB_INIT;
    bool have_text = false;
    int ret = KB_OK;
-
    do {
+      size_t align = kb_pad(kb);
+      size_t ofs = kb->len;
       size_t len;
       char32_t c;
-      kb_clear(&line);
-      ret = kb_fdecompose(&line, fp, opts, &len, &c);
-      if (kb_all_whitespace((char32_t *)line.str, len)) {
+      ret = kb_fdecompose(kb, fp, opts, &len, &c);
+      if (kb_all_whitespace((char32_t *)(&kb->str[ofs]), len)) {
          if (have_text)
             break;
       } else {
-         kb_reencode(&line, len, opts);
-         kb_cat(kb, line.str, line.len);
+         kb_reencode(kb, len, opts, ofs, align);
          kb_catb(kb, '\n');
          have_text = true;
       }
@@ -525,7 +523,6 @@ int kb_get_para(struct kb_file *restrict fp, struct kabak *restrict kb,
          break;
    } while (ret != KB_FINI);
 
-   kb_fini(&line);
    if (ret == KB_FINI && kb->len)
       return KB_OK;
    return ret;
@@ -560,6 +557,13 @@ void kb_clear(struct kabak *kb)
 {
    if (kb->alloc)
       kb->str[kb->len = 0] = '\0';
+}
+
+void kb_truncate(struct kabak *kb, size_t len)
+{
+   kb_assert(len == 0 || len < kb->alloc);
+   if (kb->alloc)
+      kb->str[kb->len = len] = '\0';
 }
 
 #define KB_INIT_SIZE sizeof(char32_t[KB_MAX_DECOMPOSITION])
@@ -676,6 +680,7 @@ const char *kb_strerror(int err)
 #include <stddef.h>
 #include <stdbool.h>
 #include <assert.h>
+#include <stdalign.h>
 
 /* Once tables are created, we only need to know whether the decomposition is
  * canonical or not. Hence the definitions below.
@@ -22125,7 +22130,7 @@ static const char32_t kb_combinations[] = {
   -1, -1, -1, -1, -1, -1, -1, -1, 
   -1, -1, -1, -1, -1, -1, -1, -1, 
   -1, };
-#line 41 "unicode.c"
+#line 42 "unicode.c"
 
 #define KB_HANGUL_SBASE 0xAC00
 #define KB_HANGUL_LBASE 0x1100
@@ -22270,20 +22275,21 @@ static int kb_decompose(struct kabak *restrict kb,
 {
    int ret = KB_OK;
    size_t wpos = 0;
+   size_t offset = kb->len;
 
    for (size_t i = 0, clen; i < len; i += clen) {
-      char32_t uc = kb_decode_s(&str[i], len - i, &clen);
-      if (uc == KB_REPLACEMENT_CHAR && clen == 1)
+      char32_t c = kb_decode_s(&str[i], len - i, &clen);
+      if (c == KB_REPLACEMENT_CHAR && clen == 1)
          ret = KB_EUTF8;
 
       char32_t *buf = kb_grow(kb, sizeof(char32_t[KB_MAX_DECOMPOSITION]));
-      size_t decomp_result = kb_decompose_char(uc, buf, options);
-      kb_assert(decomp_result <= KB_MAX_DECOMPOSITION);
-      wpos += decomp_result;
-      kb->len = sizeof(char32_t[wpos]);
+      size_t nr = kb_decompose_char(c, buf, options);
+      kb_assert(nr <= KB_MAX_DECOMPOSITION);
+      wpos += nr;
+      kb->len += sizeof(char32_t[nr]);
    }
    if (options & (KB_COMPOSE | KB_DECOMPOSE))
-      kb_canonical_reorder((char32_t *)kb->str, wpos);
+      kb_canonical_reorder((char32_t *)(&kb->str[offset]), wpos);
    
    *lenp = wpos;
    return ret;
@@ -22361,23 +22367,36 @@ local size_t kb_compose(char32_t *buffer, size_t length, unsigned options)
    return wpos;
 }
 
-local void kb_reencode(struct kabak *restrict kb, size_t len, unsigned opts)
+local void kb_reencode(struct kabak *restrict kb, size_t len, unsigned opts,
+                       size_t ofs, size_t align)
 {
    if (len) {
-      void *restrict ustr = kb->str;
+      void *restrict ustr = &kb->str[ofs];
       if (opts & KB_COMPOSE)
          len = kb_compose(ustr, len, opts);
-      kb->len = kb_encode_inplace(ustr, len);
+      kb->len = ofs - align + kb_encode_inplace(ustr, len, align);
    }
+   kb_truncate(kb, kb->len);
+}
+
+local size_t kb_pad(struct kabak *kb)
+{
+   size_t new_len = (kb->len + alignof(char32_t) - 1) & ~(alignof(char32_t) - 1);
+   size_t align = new_len - kb->len;
+
+   kb_grow(kb, align);
+   kb->len = new_len;
+   return align;
 }
 
 int kb_transform(struct kabak *restrict kb, const char *restrict str,
                  size_t len, unsigned opts)
 {
-   kb_clear(kb);
+   size_t align = kb_pad(kb);
+   size_t ofs = kb->len;
 
    int ret = kb_decompose(kb, str, len, opts, &len);
-   kb_reencode(kb, len, opts);
+   kb_reencode(kb, len, opts, ofs, align);
    return ret;
 }
 #line 1 "utf8.c"
@@ -22518,15 +22537,14 @@ size_t kb_encode(char dst[static 4], char32_t uc)
    return 4;
 }
 
-local size_t kb_encode_inplace(char32_t *str, size_t len)
+local size_t kb_encode_inplace(char32_t *str, size_t len, size_t align)
 {
    size_t new_len = 0;
 
    for (size_t i = 0; i < len; i++) {
       char32_t c = str[i];
-      new_len += kb_encode(((char *)str) + new_len, c);
+      new_len += kb_encode(((char *)str) - align + new_len, c);
    }
-   ((char *)str)[new_len] = '\0';
    return new_len;
 }
 

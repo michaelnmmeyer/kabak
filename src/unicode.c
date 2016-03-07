@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <assert.h>
+#include <stdalign.h>
 #include "api.h"
 #include "imp.h"
 
@@ -182,20 +183,21 @@ static int kb_decompose(struct kabak *restrict kb,
 {
    int ret = KB_OK;
    size_t wpos = 0;
+   size_t offset = kb->len;
 
    for (size_t i = 0, clen; i < len; i += clen) {
-      char32_t uc = kb_decode_s(&str[i], len - i, &clen);
-      if (uc == KB_REPLACEMENT_CHAR && clen == 1)
+      char32_t c = kb_decode_s(&str[i], len - i, &clen);
+      if (c == KB_REPLACEMENT_CHAR && clen == 1)
          ret = KB_EUTF8;
 
       char32_t *buf = kb_grow(kb, sizeof(char32_t[KB_MAX_DECOMPOSITION]));
-      size_t decomp_result = kb_decompose_char(uc, buf, options);
-      kb_assert(decomp_result <= KB_MAX_DECOMPOSITION);
-      wpos += decomp_result;
-      kb->len = sizeof(char32_t[wpos]);
+      size_t nr = kb_decompose_char(c, buf, options);
+      kb_assert(nr <= KB_MAX_DECOMPOSITION);
+      wpos += nr;
+      kb->len += sizeof(char32_t[nr]);
    }
    if (options & (KB_COMPOSE | KB_DECOMPOSE))
-      kb_canonical_reorder((char32_t *)kb->str, wpos);
+      kb_canonical_reorder((char32_t *)(&kb->str[offset]), wpos);
    
    *lenp = wpos;
    return ret;
@@ -273,22 +275,35 @@ local size_t kb_compose(char32_t *buffer, size_t length, unsigned options)
    return wpos;
 }
 
-local void kb_reencode(struct kabak *restrict kb, size_t len, unsigned opts)
+local void kb_reencode(struct kabak *restrict kb, size_t len, unsigned opts,
+                       size_t ofs, size_t align)
 {
    if (len) {
-      void *restrict ustr = kb->str;
+      void *restrict ustr = &kb->str[ofs];
       if (opts & KB_COMPOSE)
          len = kb_compose(ustr, len, opts);
-      kb->len = kb_encode_inplace(ustr, len);
+      kb->len = ofs - align + kb_encode_inplace(ustr, len, align);
    }
+   kb_truncate(kb, kb->len);
+}
+
+local size_t kb_pad(struct kabak *kb)
+{
+   size_t new_len = (kb->len + alignof(char32_t) - 1) & ~(alignof(char32_t) - 1);
+   size_t align = new_len - kb->len;
+
+   kb_grow(kb, align);
+   kb->len = new_len;
+   return align;
 }
 
 int kb_transform(struct kabak *restrict kb, const char *restrict str,
                  size_t len, unsigned opts)
 {
-   kb_clear(kb);
+   size_t align = kb_pad(kb);
+   size_t ofs = kb->len;
 
    int ret = kb_decompose(kb, str, len, opts, &len);
-   kb_reencode(kb, len, opts);
+   kb_reencode(kb, len, opts, ofs, align);
    return ret;
 }
