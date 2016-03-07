@@ -187,6 +187,7 @@ int kb_get_para(struct kb_file *restrict fp, struct kabak *restrict kb,
       char32_t c;
       ret = kb_fdecompose(kb, fp, opts, &len, &c);
       if (kb_all_whitespace((char32_t *)(&kb->str[ofs]), len)) {
+         kb->len = ofs - align;
          if (have_text)
             break;
       } else {
@@ -198,6 +199,7 @@ int kb_get_para(struct kb_file *restrict fp, struct kabak *restrict kb,
          break;
    } while (ret != KB_FINI);
 
+   kb_truncate(kb, kb->len);
    if (ret == KB_FINI && kb->len)
       return KB_OK;
    return ret;
